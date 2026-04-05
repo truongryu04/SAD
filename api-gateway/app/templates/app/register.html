@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaShop Gateway Register</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+
+        :root {
+            --bg-1: #fff4d6;
+            --bg-2: #ddf4ec;
+            --panel: #fffdf7;
+            --line: #d7d8cf;
+            --ink: #1f2430;
+            --muted: #667085;
+            --brand: #0f766e;
+            --danger-bg: #fee4e2;
+            --danger-fg: #b42318;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            padding: 20px;
+            font-family: "Space Grotesk", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 90% 8%, #fca5a5 0, transparent 23%),
+                radial-gradient(circle at 8% 84%, #67e8f9 0, transparent 30%),
+                linear-gradient(120deg, var(--bg-1), var(--bg-2));
+        }
+
+        .card {
+            width: min(520px, 96vw);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid var(--line);
+            border-radius: 26px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+            padding: 28px;
+        }
+
+        .title {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 34px);
+        }
+
+        .subtitle {
+            margin: 8px 0 18px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        label {
+            display: block;
+            margin: 12px 0 6px;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .input,
+        .select,
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid var(--line);
+            font: inherit;
+        }
+
+        .input:focus,
+        .select:focus {
+            outline: none;
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+        }
+
+        .btn {
+            margin-top: 18px;
+            border: 0;
+            background: linear-gradient(90deg, #0f766e, #14b8a6);
+            color: #fff;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            filter: brightness(1.06);
+        }
+
+        .error {
+            margin-top: 14px;
+            border: 1px solid #fecdca;
+            background: var(--danger-bg);
+            color: var(--danger-fg);
+            border-radius: 12px;
+            padding: 10px 12px;
+            font-size: 13px;
+        }
+
+        .switch {
+            margin-top: 14px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .switch a {
+            color: #0f766e;
+            text-decoration: none;
+            font-weight: 700;
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <h1 class="title">Create Account</h1>
+        <p class="subtitle">Register as CUSTOMER or STAFF to unlock role-based dashboard features.</p>
+
+        <form method="post" action="/ui/register/">
+            {% csrf_token %}
+
+            <label for="role">Role</label>
+            <select id="role" name="role" class="select">
+                <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>CUSTOMER</option>
+                <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>STAFF</option>
+            </select>
+
+            <label for="username">Username</label>
+            <input id="username" class="input" name="username" type="text" value="{{ username }}" required>
+
+            <label for="full_name">Full Name</label>
+            <input id="full_name" class="input" name="full_name" type="text" value="{{ full_name }}" required>
+
+            <label for="password">Password</label>
+            <input id="password" class="input" name="password" type="password" required>
+
+            <button class="btn" type="submit">Register</button>
+        </form>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <div class="switch">Already have an account? <a href="/">Go to login</a></div>
+    </main>
+</body>
+</html>

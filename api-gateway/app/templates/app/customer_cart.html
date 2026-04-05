@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaShop Cart</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+        :root {
+            --bg-a: #fdf3df;
+            --bg-b: #e8f7ef;
+            --line: #e4e6dc;
+            --ink: #1f2937;
+            --muted: #667085;
+            --brand: #0f766e;
+            --danger: #b91c1c;
+            --shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Manrope", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 8% 10%, #fecaca 0, transparent 24%),
+                radial-gradient(circle at 92% 82%, #a7f3d0 0, transparent 30%),
+                linear-gradient(140deg, var(--bg-a), var(--bg-b));
+        }
+
+        .page {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            gap: 16px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: var(--shadow);
+            padding: 16px;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .sub {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .button {
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            min-height: 42px;
+            padding: 0 12px;
+            background: #fff;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-grid;
+            place-items: center;
+            color: #334155;
+        }
+
+        .button.brand {
+            border: 0;
+            background: linear-gradient(90deg, #0f766e, #0ea5a4);
+            color: #fff;
+        }
+
+        .button.warn {
+            border: 0;
+            background: #fee2e2;
+            color: var(--danger);
+        }
+
+        .status {
+            border-radius: 12px;
+            padding: 10px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status.ok {
+            display: block;
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .status.error {
+            display: block;
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .summary {
+            margin-top: 12px;
+            border: 1px solid #d1fae5;
+            background: #ccfbf1;
+            border-radius: 12px;
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .summary .line {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px 8px;
+            border-bottom: 1px solid #eef2f7;
+            font-size: 13px;
+        }
+
+        .empty {
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            color: var(--muted);
+            background: #f8fafc;
+            font-size: 13px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="panel topbar">
+            <div>
+                <h1 class="title">My Cart</h1>
+                <p class="sub">Customer: <strong>{{ full_name|default:username }}</strong> · ID: {{ user_id }}</p>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <a class="button" href="/ui/customer/">Back to Catalog</a>
+                <button class="button brand" type="button" onclick="loadCart()">Refresh Cart</button>
+                <a class="button warn" href="/ui/logout/">Logout</a>
+            </div>
+        </header>
+
+        <section id="status" class="status"></section>
+
+        <section class="panel">
+            <div id="empty" class="empty" style="display:none;">Your cart is empty.</div>
+            <table id="cart-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Line Total</th>
+                    </tr>
+                </thead>
+                <tbody id="cart-body"></tbody>
+            </table>
+
+            <div class="summary">
+                <div class="line"><span>Total Items</span><strong id="sum-items">0</strong></div>
+                <div class="line"><span>Total Price</span><strong id="sum-price">0</strong></div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
+
+        function money(v) {
+            const n = Number(v || 0);
+            return Number.isFinite(n) ? n.toLocaleString("vi-VN") + " VND" : "N/A";
+        }
+
+        function status(message, type) {
+            const el = document.getElementById("status");
+            el.className = "status " + (type || "ok");
+            el.textContent = message;
+        }
+
+        async function fetchJson(url, options) {
+            const res = await fetch(url, options);
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text || "{}");
+            } catch (error) {
+                data = { message: text || "Empty response" };
+            }
+            if (!res.ok) {
+                const message = data.error || data.message || ("Request failed: " + res.status);
+                throw new Error(message);
+            }
+            return data;
+        }
+
+        function escapeHtml(v) {
+            return String(v)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        function renderCart(data) {
+            const table = document.getElementById("cart-table");
+            const body = document.getElementById("cart-body");
+            const empty = document.getElementById("empty");
+            const sumItems = document.getElementById("sum-items");
+            const sumPrice = document.getElementById("sum-price");
+
+            const items = Array.isArray(data?.items) ? data.items : [];
+            if (!items.length) {
+                table.style.display = "none";
+                empty.style.display = "block";
+                body.innerHTML = "";
+                sumItems.textContent = "0";
+                sumPrice.textContent = money(0);
+                return;
+            }
+
+            table.style.display = "table";
+            empty.style.display = "none";
+
+            body.innerHTML = items.map((it, idx) => (
+                '<tr>' +
+                    '<td>' + (idx + 1) + '</td>' +
+                    '<td>' + escapeHtml(it.name || "Unknown") + '</td>' +
+                    '<td>' + escapeHtml(it.item_type || "N/A") + '</td>' +
+                    '<td>' + Number(it.quantity || 0) + '</td>' +
+                    '<td>' + money(it.price || 0) + '</td>' +
+                    '<td>' + money(it.line_total || 0) + '</td>' +
+                '</tr>'
+            )).join("");
+
+            sumItems.textContent = String(data.items_count || items.length || 0);
+            sumPrice.textContent = money(data.total || 0);
+        }
+
+        async function loadCart() {
+            try {
+                const data = await fetchJson("/api/customer/carts/?customer_id=" + CUSTOMER_ID);
+                renderCart(data);
+                status("Cart loaded.", "ok");
+            } catch (error) {
+                renderCart({ items: [] });
+                status(error.message, "error");
+            }
+        }
+
+        window.addEventListener("load", loadCart);
+    </script>
+</body>
+</html>

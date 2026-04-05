@@ -1,0 +1,152 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: "ktra1_customer_db"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_DB: "ktra1_laptop_db"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ktra1_laptop_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  customer-service:
+    build:
+      context: ./customer-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.mysql
+      DB_MYSQL_NAME: ktra1_customer_db
+      DB_MYSQL_USER: root
+      DB_MYSQL_PASSWORD: "123456"
+      DB_MYSQL_HOST: mysql
+      DB_MYSQL_PORT: "3306"
+    ports:
+      - "8001:8001"
+
+  staff-service:
+    build:
+      context: ./staff-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.mysql
+      DB_MYSQL_NAME: ktra1_staff_db
+      DB_MYSQL_USER: root
+      DB_MYSQL_PASSWORD: "123456"
+      DB_MYSQL_HOST: mysql
+      DB_MYSQL_PORT: "3306"
+    ports:
+      - "8002:8002"
+
+  laptop-service:
+    build:
+      context: ./laptop-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_NAME: ktra1_laptop_db
+      DB_POSTGRES_USER: postgres
+      DB_POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+    ports:
+      - "8003:8003"
+
+  mobile-service:
+    build:
+      context: ./mobile-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_NAME: ktra1_mobile_db
+      DB_POSTGRES_USER: postgres
+      DB_POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+    ports:
+      - "8004:8004"
+
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    depends_on:
+      - postgres
+      - customer-service
+      - laptop-service
+      - mobile-service
+    environment:
+      ALLOWED_HOSTS: "*"
+      AI_SERVICE_PORT: "8005"
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_NAME: ktra1_ai_db
+      DB_POSTGRES_USER: postgres
+      DB_POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      LAPTOP_SERVICE_URL: http://laptop-service:8003
+      MOBILE_SERVICE_URL: http://mobile-service:8004
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: llama3.1
+    ports:
+      - "8005:8005"
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    depends_on:
+      - customer-service
+      - staff-service
+      - laptop-service
+      - mobile-service
+      - ai-service
+    environment:
+      ALLOWED_HOSTS: "*"
+      API_GATEWAY_PORT: "8000"
+      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      STAFF_SERVICE_URL: http://staff-service:8002
+      LAPTOP_SERVICE_URL: http://laptop-service:8003
+      MOBILE_SERVICE_URL: http://mobile-service:8004
+      AI_SERVICE_URL: http://ai-service:8005
+    ports:
+      - "8000:8000"
+
+volumes:
+  mysql_data:
+  postgres_data:

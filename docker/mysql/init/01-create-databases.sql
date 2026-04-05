@@ -1,0 +1,3 @@
+CREATE DATABASE IF NOT EXISTS ktra1_customer_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ktra1_staff_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS ktra1_laptop_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;

@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaShop Staff</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+        :root {
+            --bg-a: #eff6ff;
+            --bg-b: #f0fdf4;
+            --panel: #ffffff;
+            --line: #dbe4ea;
+            --ink: #1f2937;
+            --muted: #64748b;
+            --brand: #1d4ed8;
+            --brand-2: #0f766e;
+            --danger: #991b1b;
+            --danger-bg: #fee2e2;
+            --ok: #166534;
+            --ok-bg: #dcfce7;
+            --shadow: 0 16px 36px rgba(15, 23, 42, 0.1);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Manrope", sans-serif;
+            color: var(--ink);
+            background:
+                radial-gradient(circle at 10% 8%, #bfdbfe 0, transparent 26%),
+                radial-gradient(circle at 92% 88%, #86efac 0, transparent 28%),
+                linear-gradient(140deg, var(--bg-a), var(--bg-b));
+        }
+
+        .page {
+            max-width: 1300px;
+            margin: 0 auto;
+            padding: 16px;
+            display: grid;
+            gap: 16px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.93);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(8px);
+        }
+
+        .topbar {
+            padding: 14px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .muted {
+            margin: 4px 0 0;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .button,
+        .input,
+        .select,
+        .textarea {
+            width: 100%;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            min-height: 42px;
+            padding: 0 12px;
+            font: inherit;
+            background: #fff;
+        }
+
+        .textarea {
+            padding: 10px 12px;
+            min-height: 84px;
+            resize: vertical;
+        }
+
+        .input:focus,
+        .select:focus,
+        .textarea:focus {
+            outline: none;
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.15);
+        }
+
+        .button {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .button.brand {
+            border: 0;
+            color: #fff;
+            background: linear-gradient(90deg, #1d4ed8, #2563eb);
+        }
+
+        .button.green {
+            border: 0;
+            color: #fff;
+            background: linear-gradient(90deg, #0f766e, #059669);
+        }
+
+        .button.soft {
+            background: #f1f5f9;
+            color: #334155;
+        }
+
+        .button.warn {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 0;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 16px;
+        }
+
+        .left {
+            display: grid;
+            gap: 16px;
+            align-content: start;
+        }
+
+        .box {
+            padding: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .box h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .label {
+            margin: 0;
+            font-size: 12px;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            color: #475569;
+            text-transform: uppercase;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .status {
+            border-radius: 12px;
+            padding: 10px;
+            font-size: 13px;
+            display: none;
+        }
+
+        .status.ok {
+            display: block;
+            background: var(--ok-bg);
+            color: var(--ok);
+            border: 1px solid #bbf7d0;
+        }
+
+        .status.error {
+            display: block;
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid #fecaca;
+        }
+
+        .right {
+            padding: 14px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fff;
+        }
+
+        th, td {
+            border-bottom: 1px solid #ecf1f5;
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 13px;
+            vertical-align: top;
+        }
+
+        th {
+            background: #f8fafc;
+            color: #475569;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.04em;
+        }
+
+        .badge {
+            border-radius: 999px;
+            padding: 4px 9px;
+            font-size: 11px;
+            font-weight: 800;
+            display: inline-block;
+        }
+
+        .badge.laptop { background: #dbeafe; color: #1e3a8a; }
+        .badge.mobile { background: #dcfce7; color: #166534; }
+
+        .log {
+            background: #0f172a;
+            color: #7dd3fc;
+            border-radius: 12px;
+            padding: 10px;
+            max-height: 220px;
+            overflow: auto;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 1020px) {
+            .layout { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 640px) {
+            .row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header class="topbar panel">
+            <div>
+                <h1 class="title">NovaShop Staff Console</h1>
+                <p class="muted">Welcome <strong>{{ full_name|default:username }}</strong> · Staff ID: {{ user_id }}</p>
+            </div>
+            <div style="display:flex; gap:8px;">
+                <button class="button soft" style="width:auto;" onclick="loadItems()">Reload</button>
+                <a class="button warn" style="width:auto; text-decoration:none; display:inline-grid; place-items:center;" href="/ui/logout/">Logout</a>
+            </div>
+        </header>
+
+        <section id="status" class="status"></section>
+
+        <div class="layout">
+            <div class="left">
+                <section class="box panel">
+                    <h3>Add New Product</h3>
+
+                    <p class="label">Item Type</p>
+                    <select id="create-type" class="select" onchange="toggleTypeFields()">
+                        <option value="laptop">Laptop</option>
+                        <option value="mobile">Mobile</option>
+                    </select>
+
+                    <p class="label">Product Name</p>
+                    <input id="create-name" class="input" type="text" placeholder="Example: MacBook Air M3">
+
+                    <p class="label">Brand</p>
+                    <input id="create-brand" class="input" type="text" placeholder="Apple, Samsung...">
+
+                    <div id="laptop-fields">
+                        <p class="label">CPU</p>
+                        <input id="create-cpu" class="input" type="text" placeholder="Intel i7 / Apple M2">
+                        <div class="row">
+                            <div>
+                                <p class="label">RAM (GB)</p>
+                                <input id="create-ram" class="input" type="number" value="8">
+                            </div>
+                            <div>
+                                <p class="label">Storage (GB)</p>
+                                <input id="create-storage" class="input" type="number" value="256">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="mobile-fields" style="display:none;">
+                        <p class="label">Screen Size</p>
+                        <input id="create-screen" class="input" type="text" placeholder="6.7 inch">
+                        <div class="row">
+                            <div>
+                                <p class="label">Battery (mAh)</p>
+                                <input id="create-battery" class="input" type="number" value="4500">
+                            </div>
+                            <div>
+                                <p class="label">Camera</p>
+                                <input id="create-camera" class="input" type="text" placeholder="50MP + 12MP">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div>
+                            <p class="label">Price</p>
+                            <input id="create-price" class="input" type="number" step="0.01" value="0">
+                        </div>
+                        <div>
+                            <p class="label">Stock</p>
+                            <input id="create-stock" class="input" type="number" value="0">
+                        </div>
+                    </div>
+
+                    <p class="label">Description</p>
+                    <textarea id="create-description" class="textarea" placeholder="Short product description"></textarea>
+
+                    <button class="button green" onclick="createItem()">Create Product</button>
+                </section>
+
+                <section class="box panel">
+                    <h3>Update Product</h3>
+                    <p class="label">Product ID</p>
+                    <input id="update-id" class="input" type="number" placeholder="Required">
+
+                    <p class="label">Name (optional)</p>
+                    <input id="update-name" class="input" type="text" placeholder="Leave blank if unchanged">
+
+                    <div class="row">
+                        <div>
+                            <p class="label">Price (optional)</p>
+                            <input id="update-price" class="input" type="number" step="0.01" placeholder="Optional">
+                        </div>
+                        <div>
+                            <p class="label">Stock (optional)</p>
+                            <input id="update-stock" class="input" type="number" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <p class="label">Description (optional)</p>
+                    <textarea id="update-description" class="textarea" placeholder="Optional"></textarea>
+
+                    <button class="button brand" onclick="updateItem()">Update Product</button>
+                </section>
+            </div>
+
+            <section class="right panel">
+                <div class="toolbar">
+                    <div>
+                        <h3 style="margin:0; font-size:18px;">Inventory List</h3>
+                        <p class="muted" style="margin:4px 0 0;">Click row to load product ID into update form.</p>
+                    </div>
+                    <button class="button soft" style="width:auto;" onclick="loadItems()">Refresh List</button>
+                </div>
+
+                <div style="overflow:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Brand</th>
+                                <th>Price</th>
+                                <th>Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body"></tbody>
+                    </table>
+                </div>
+
+                <pre id="log" class="log">Loading inventory...</pre>
+            </section>
+        </div>
+    </div>
+
+    <script>
+        function status(message, type) {
+            const el = document.getElementById("status");
+            el.className = "status " + (type || "ok");
+            el.textContent = message;
+        }
+
+        function money(v) {
+            const n = Number(v || 0);
+            return Number.isFinite(n) ? n.toLocaleString("vi-VN") + " VND" : "N/A";
+        }
+
+        async function fetchJson(url, options) {
+            const res = await fetch(url, options);
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text || "{}");
+            } catch (error) {
+                data = { message: text };
+            }
+            if (!res.ok) {
+                throw new Error(data.error || data.message || ("Request failed: " + res.status));
+            }
+            return data;
+        }
+
+        function toggleTypeFields() {
+            const type = document.getElementById("create-type").value;
+            document.getElementById("laptop-fields").style.display = type === "laptop" ? "block" : "none";
+            document.getElementById("mobile-fields").style.display = type === "mobile" ? "block" : "none";
+        }
+
+        function buildCreatePayload() {
+            const type = document.getElementById("create-type").value;
+            const payload = {
+                item_type: type,
+                name: (document.getElementById("create-name").value || "").trim(),
+                brand: (document.getElementById("create-brand").value || "").trim(),
+                price: Number(document.getElementById("create-price").value || 0),
+                stock: Number(document.getElementById("create-stock").value || 0),
+                description: (document.getElementById("create-description").value || "").trim(),
+            };
+
+            if (type === "laptop") {
+                payload.cpu = (document.getElementById("create-cpu").value || "").trim();
+                payload.ram_gb = Number(document.getElementById("create-ram").value || 8);
+                payload.storage_gb = Number(document.getElementById("create-storage").value || 256);
+            } else {
+                payload.screen_size = (document.getElementById("create-screen").value || "").trim();
+                payload.battery_mah = Number(document.getElementById("create-battery").value || 0);
+                payload.camera_specs = (document.getElementById("create-camera").value || "").trim();
+            }
+            return payload;
+        }
+
+        async function createItem() {
+            try {
+                const payload = buildCreatePayload();
+                const data = await fetchJson("/api/staff/items/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                document.getElementById("log").textContent = JSON.stringify(data, null, 2);
+                status("Product created successfully.", "ok");
+                await loadItems();
+            } catch (error) {
+                status(error.message, "error");
+            }
+        }
+
+        function buildUpdatePayload() {
+            const payload = {};
+            const name = (document.getElementById("update-name").value || "").trim();
+            const price = (document.getElementById("update-price").value || "").trim();
+            const stock = (document.getElementById("update-stock").value || "").trim();
+            const description = (document.getElementById("update-description").value || "").trim();
+
+            if (name) payload.name = name;
+            if (price !== "") payload.price = Number(price);
+            if (stock !== "") payload.stock = Number(stock);
+            if (description) payload.description = description;
+
+            return payload;
+        }
+
+        async function updateItem() {
+            const id = Number(document.getElementById("update-id").value || 0);
+            if (!id) {
+                status("Product ID is required for update.", "error");
+                return;
+            }
+
+            const payload = buildUpdatePayload();
+            if (!Object.keys(payload).length) {
+                status("Please fill at least one field to update.", "error");
+                return;
+            }
+
+            try {
+                const data = await fetchJson("/api/staff/items/" + id + "/", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                document.getElementById("log").textContent = JSON.stringify(data, null, 2);
+                status("Product updated successfully.", "ok");
+                await loadItems();
+            } catch (error) {
+                status(error.message, "error");
+            }
+        }
+
+        function getType(item) {
+            if (item.item_type) return String(item.item_type).toLowerCase();
+            if (Object.prototype.hasOwnProperty.call(item, "cpu")) return "laptop";
+            if (Object.prototype.hasOwnProperty.call(item, "camera_specs")) return "mobile";
+            return "unknown";
+        }
+
+        function renderTable(items) {
+            const body = document.getElementById("table-body");
+            if (!items.length) {
+                body.innerHTML = '<tr><td colspan="6">No inventory data.</td></tr>';
+                return;
+            }
+
+            body.innerHTML = items.map((item) => {
+                const type = getType(item);
+                return (
+                    '<tr onclick="document.getElementById(\'update-id\').value=' + Number(item.id || 0) + '">' +
+                        '<td>#' + Number(item.id || 0) + '</td>' +
+                        '<td><strong>' + escapeHtml(item.name || "Unknown") + '</strong><br><span style="color:#64748b; font-size:11px;">' + escapeHtml(item.description || "") + '</span></td>' +
+                        '<td><span class="badge ' + type + '">' + type.toUpperCase() + '</span></td>' +
+                        '<td>' + escapeHtml(item.brand || "N/A") + '</td>' +
+                        '<td>' + money(item.price || 0) + '</td>' +
+                        '<td>' + Number(item.stock || 0) + '</td>' +
+                    '</tr>'
+                );
+            }).join("");
+        }
+
+        function escapeHtml(v) {
+            return String(v)
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;");
+        }
+
+        async function loadItems() {
+            try {
+                const data = await fetchJson("/api/staff/items/");
+                const items = Array.isArray(data.data) ? data.data : (Array.isArray(data) ? data : []);
+                document.getElementById("log").textContent = JSON.stringify(data, null, 2);
+                renderTable(items);
+                status("Loaded " + items.length + " item(s).", "ok");
+            } catch (error) {
+                status(error.message, "error");
+                document.getElementById("table-body").innerHTML = '<tr><td colspan="6">Failed to load inventory.</td></tr>';
+            }
+        }
+
+        toggleTypeFields();
+        loadItems();
+    </script>
+</body>
+</html>

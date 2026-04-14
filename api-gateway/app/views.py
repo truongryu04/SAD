@@ -1,4 +1,5 @@
 import json
+import time
 import urllib.error
 import urllib.request
 
@@ -226,6 +227,65 @@ def _has_role(request, role):
 	return request.session.get("is_authenticated") and request.session.get("role") == role
 
 
+def _emit_view_activity(customer_service_url, customer_id, product_id):
+	if not customer_service_url:
+		return
+	payload = {
+		"customer_id": int(customer_id),
+		"action": "VIEW_PRODUCT",
+		"item_type": "product",
+		"item_id": int(product_id),
+		"quantity": 1,
+	}
+	request = urllib.request.Request(
+		url=f"{customer_service_url.rstrip('/')}/customer/activities/",
+		method="POST",
+		headers={"Content-Type": "application/json", "Accept": "application/json"},
+		data=json.dumps(payload).encode("utf-8"),
+	)
+	try:
+		with urllib.request.urlopen(request, timeout=3):
+			return
+	except (urllib.error.HTTPError, urllib.error.URLError, ValueError, TypeError):
+		# Tracking must never block page rendering.
+		return
+
+
+def _should_emit_view_event(request, customer_id, product_id):
+	window_seconds = max(1, int(getattr(settings, "VIEWED_EVENT_WINDOW_SECONDS", 300)))
+	now = int(time.time())
+	dedupe_key = f"{int(customer_id)}:{int(product_id)}"
+
+	guard = request.session.get("viewed_event_guard", {})
+	if not isinstance(guard, dict):
+		guard = {}
+
+	last_seen = guard.get(dedupe_key)
+	try:
+		last_seen = int(last_seen)
+	except (TypeError, ValueError):
+		last_seen = 0
+
+	if last_seen and (now - last_seen) < window_seconds:
+		return False
+
+	# Keep only recent keys to prevent session payload growth.
+	min_keep = now - (window_seconds * 2)
+	pruned_guard = {}
+	for key, ts in guard.items():
+		try:
+			parsed = int(ts)
+		except (TypeError, ValueError):
+			continue
+		if parsed >= min_keep:
+			pruned_guard[key] = parsed
+
+	pruned_guard[dedupe_key] = now
+	request.session["viewed_event_guard"] = pruned_guard
+	request.session.modified = True
+	return True
+
+
 class LoginPageView(View):
 	def get(self, request):
 		if _has_role(request, "CUSTOMER"):
@@ -360,6 +420,44 @@ class CustomerCartPageView(View):
 		)
 
 
+class CustomerProductsPageView(View):
+	def get(self, request):
+		if not _has_role(request, "CUSTOMER"):
+			return redirect("/")
+		return render(
+			request,
+			"app/customer_products.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
+class CustomerProductDetailPageView(View):
+	def get(self, request, product_id):
+		if not _has_role(request, "CUSTOMER"):
+			return redirect("/")
+		customer_id = request.session.get("user_id")
+		if customer_id and _should_emit_view_event(request, customer_id, product_id):
+			_emit_view_activity(
+				customer_service_url=settings.CUSTOMER_SERVICE_URL,
+				customer_id=customer_id,
+				product_id=product_id,
+			)
+		return render(
+			request,
+			"app/customer_product_detail.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+				"product_id": product_id,
+			},
+		)
+
+
 class StaffDashboardView(View):
 	def get(self, request):
 		if not _has_role(request, "STAFF"):
@@ -367,6 +465,66 @@ class StaffDashboardView(View):
 		return render(
 			request,
 			"app/staff_dashboard.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
+class StaffProductPageView(View):
+	def get(self, request):
+		if not _has_role(request, "STAFF"):
+			return redirect("/")
+		return render(
+			request,
+			"app/staff_products.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
+class StaffOrderPageView(View):
+	def get(self, request):
+		if not _has_role(request, "STAFF"):
+			return redirect("/")
+		return render(
+			request,
+			"app/staff_orders.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
+class StaffCategoryPageView(View):
+	def get(self, request):
+		if not _has_role(request, "STAFF"):
+			return redirect("/")
+		return render(
+			request,
+			"app/staff_categories.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
+class StaffCustomerPageView(View):
+	def get(self, request):
+		if not _has_role(request, "STAFF"):
+			return redirect("/")
+		return render(
+			request,
+			"app/staff_customers.html",
 			{
 				"username": request.session.get("username"),
 				"full_name": request.session.get("full_name"),
@@ -440,6 +598,18 @@ class CustomerLoginProxyView(View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
+class CustomerAccountProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, "/customer/accounts/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CustomerAccountDetailProxyView(View):
+	def patch(self, request, customer_id):
+		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, f"/customer/accounts/{customer_id}/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
 class CustomerCartProxyView(View):
 	def post(self, request):
 		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, "/customer/carts/")
@@ -457,6 +627,126 @@ class CustomerCartItemProxyView(View):
 		# POST to /customer/carts/items/ (or similar). We forward the request body
 		# as-is so the customer service can interpret product_id, quantity, etc.
 		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, "/customer/carts/items/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CustomerCartItemDetailProxyView(View):
+	def patch(self, request, cart_item_id):
+		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, f"/customer/carts/items/{cart_item_id}/")
+
+	def delete(self, request, cart_item_id):
+		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, f"/customer/carts/items/{cart_item_id}/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class OrderCheckoutProxyView(View):
+	def post(self, request):
+		return _proxy_request(request, "order", settings.ORDER_SERVICE_URL, "/orders/checkout/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class OrderProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "order", settings.ORDER_SERVICE_URL, "/orders/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CategoryProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, "/api/categories/")
+
+	def post(self, request):
+		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, "/api/categories/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CategoryDetailProxyView(View):
+	def get(self, request, category_id):
+		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+
+	def put(self, request, category_id):
+		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+
+	def patch(self, request, category_id):
+		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+
+	def delete(self, request, category_id):
+		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ProductProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/products/")
+
+	def post(self, request):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/products/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ProductDetailProxyView(View):
+	def get(self, request, product_id):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+
+	def put(self, request, product_id):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+
+	def patch(self, request, product_id):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+
+	def delete(self, request, product_id):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ProductCategoryAttributesProxyView(View):
+	def get(self, request, category_id):
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/categories/{category_id}/attributes/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class AttributeProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/attributes/")
+
+	def post(self, request):
+		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/attributes/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CategoryAttributeProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/category-attributes/")
+
+	def post(self, request):
+		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/category-attributes/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ProductAttributeValueProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/product-attribute-values/")
+
+	def post(self, request):
+		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/product-attribute-values/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class KBHealthProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "kb", settings.KB_SERVICE_URL, "/api/kb/health/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class KBCollectProxyView(View):
+	def post(self, request):
+		return _proxy_request(request, "kb", settings.KB_SERVICE_URL, "/api/kb/collect/", timeout=60)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class KBSemanticSearchProxyView(View):
+	def post(self, request):
+		return _proxy_request(request, "kb", settings.KB_SERVICE_URL, "/api/kb/search/semantic/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -538,6 +828,14 @@ class StaffItemDetailProxyView(View):
 		)
 
 	def patch(self, request, item_id):
+		return _proxy_request(
+			request,
+			"staff",
+			settings.STAFF_SERVICE_URL,
+			f"/staff/items/{item_id}/",
+		)
+
+	def delete(self, request, item_id):
 		return _proxy_request(
 			request,
 			"staff",

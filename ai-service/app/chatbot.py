@@ -12,6 +12,10 @@ from pgvector.django import CosineDistance
 from .models import ProductVectorIndex
 
 
+class ModelNotFoundError(RuntimeError):
+    pass
+
+
 @dataclass
 class ProductDocument:
     item_type: str
@@ -75,15 +79,18 @@ class OllamaClient:
                 return str(data.get("response") or "")
         except urllib.error.HTTPError as ex:
             raw = ex.read().decode("utf-8", errors="ignore")
+            if ex.code == 404 and "not found" in raw.lower() and "model" in raw.lower():
+                raise ModelNotFoundError(
+                    f"Model '{self.model}' chưa có trong Ollama. Hãy chạy: ollama pull {self.model}"
+                )
             raise RuntimeError(f"Ollama HTTPError {ex.code}: {raw}")
         except urllib.error.URLError as ex:
             raise RuntimeError(f"Cannot connect to Ollama: {ex}")
 
 
 class ProductKnowledgeBase:
-    def __init__(self, laptop_service_url: str, mobile_service_url: str) -> None:
-        self.laptop_service_url = laptop_service_url.rstrip("/")
-        self.mobile_service_url = mobile_service_url.rstrip("/")
+    def __init__(self, product_service_url: str) -> None:
+        self.product_service_url = (product_service_url or "").rstrip("/")
 
     def _fetch_json(self, url: str) -> Dict:
         req = urllib.request.Request(url=url, method="GET", headers={"Accept": "application/json"})
@@ -100,53 +107,34 @@ class ProductKnowledgeBase:
     def build_documents(self) -> List[ProductDocument]:
         docs: List[ProductDocument] = []
 
-        laptop_payload = self._fetch_json(f"{self.laptop_service_url}/laptops/")
-        laptop_items = laptop_payload.get("data") if isinstance(laptop_payload, dict) else []
-        if isinstance(laptop_items, list):
-            for item in laptop_items:
-                item_id = item.get("id")
-                if item_id is None:
-                    continue
-                docs.append(
-                    ProductDocument(
-                        item_type="laptop",
-                        item_id=int(item_id),
-                        name=str(item.get("name") or "Unknown"),
-                        brand=str(item.get("brand") or "Unknown"),
-                        price=str(item.get("price") or "0"),
-                        stock=int(item.get("stock") or 0),
-                        description=str(item.get("description") or ""),
-                        extra={
-                            "cpu": item.get("cpu"),
-                            "ram_gb": item.get("ram_gb"),
-                            "storage_gb": item.get("storage_gb"),
-                        },
-                    )
-                )
+        if self.product_service_url:
+            try:
+                product_payload = self._fetch_json(f"{self.product_service_url}/api/products/")
+                product_items = product_payload.get("data") if isinstance(product_payload, dict) else []
+                if not isinstance(product_items, list):
+                    product_items = product_payload if isinstance(product_payload, list) else []
 
-        mobile_payload = self._fetch_json(f"{self.mobile_service_url}/mobiles/")
-        mobile_items = mobile_payload.get("data") if isinstance(mobile_payload, dict) else []
-        if isinstance(mobile_items, list):
-            for item in mobile_items:
-                item_id = item.get("id")
-                if item_id is None:
-                    continue
-                docs.append(
-                    ProductDocument(
-                        item_type="mobile",
-                        item_id=int(item_id),
-                        name=str(item.get("name") or "Unknown"),
-                        brand=str(item.get("brand") or "Unknown"),
-                        price=str(item.get("price") or "0"),
-                        stock=int(item.get("stock") or 0),
-                        description=str(item.get("description") or ""),
-                        extra={
-                            "camera_specs": item.get("camera_specs"),
-                            "screen_size": item.get("screen_size"),
-                            "battery_mah": item.get("battery_mah"),
-                        },
+                for item in product_items:
+                    item_id = item.get("id")
+                    if item_id is None:
+                        continue
+
+                    category_id = int(item.get("category_id") or 0)
+                    item_type = "laptop" if category_id in {2, 9, 10} else "mobile"
+                    docs.append(
+                        ProductDocument(
+                            item_type=item_type,
+                            item_id=int(item_id),
+                            name=str(item.get("name") or "Unknown"),
+                            brand=str(item.get("brand") or "Unknown"),
+                            price=str(item.get("base_price") or item.get("price") or "0"),
+                            stock=0,
+                            description=str(item.get("description") or ""),
+                            extra={},
+                        )
                     )
-                )
+            except RuntimeError:
+                pass
 
         return docs
 
@@ -312,20 +300,73 @@ class Retriever:
         return [doc for _, doc in scored[:top_k]] or self.docs[:top_k]
 
 
-class NovaShopRAGChatbot:
+class EcomRAGChatbot:
     def __init__(
         self,
-        laptop_service_url: str,
-        mobile_service_url: str,
+        product_service_url: str,
         ollama_base_url: str,
         ollama_model: str = "llama3.1",
     ) -> None:
         self.kb = ProductKnowledgeBase(
-            laptop_service_url=laptop_service_url,
-            mobile_service_url=mobile_service_url,
+            product_service_url=product_service_url,
         )
         self.vector_store = VectorStoreService(dimensions=256)
         self.llm = OllamaClient(base_url=ollama_base_url, model=ollama_model)
+
+    def _parse_price_value(self, price: str) -> float:
+        text = str(price or "")
+        normalized = re.sub(r"[^0-9.,]", "", text).replace(",", "")
+        try:
+            return float(normalized) if normalized else 0.0
+        except ValueError:
+            return 0.0
+
+    def _fallback_answer(self, customer_question: str, docs: List[ProductDocument], reason: str) -> str:
+        q = customer_question.lower()
+        wants_mobile = any(tok in q for tok in ["điện thoại", "dien thoai", "phone", "mobile"])
+        wants_laptop = any(tok in q for tok in ["laptop", "notebook", "ultrabook"])
+        wants_most_expensive = any(tok in q for tok in ["đắt nhất", "dat nhat", "cao nhất", "max"])
+        wants_cheapest = any(tok in q for tok in ["rẻ nhất", "re nhat", "thấp nhất", "min"])
+
+        filtered = docs
+        if wants_mobile and not wants_laptop:
+            filtered = [d for d in docs if d.item_type == "mobile"]
+        elif wants_laptop and not wants_mobile:
+            filtered = [d for d in docs if d.item_type == "laptop"]
+
+        if not filtered:
+            filtered = docs
+
+        if wants_most_expensive:
+            filtered = sorted(filtered, key=lambda d: self._parse_price_value(d.price), reverse=True)
+        elif wants_cheapest:
+            filtered = sorted(filtered, key=lambda d: self._parse_price_value(d.price))
+
+        picks = filtered[:3]
+        if not picks:
+            return (
+                "Nova Shop chưa có đủ dữ liệu sản phẩm để tư vấn lúc này. "
+                "Bạn thử nêu rõ nhu cầu: tầm giá, hãng, RAM hoặc camera nhé."
+            )
+
+        lines = []
+        for idx, p in enumerate(picks, start=1):
+            lines.append(
+                f"{idx}. {p.name} ({p.item_type}) - giá: {p.price}, hãng: {p.brand}, tồn kho: {p.stock}"
+            )
+
+        reason_note = (
+            "AI đang tạm thời chuyển sang chế độ tư vấn nhanh vì hệ thống AI đang bận. "
+            "Bạn có thể tiếp tục hỏi theo hãng, tầm giá hoặc nhu cầu sử dụng để mình lọc chính xác hơn."
+        )
+        return "\n".join(
+            [
+                "Xin chào, Nova Shop gợi ý nhanh cho bạn:",
+                *lines,
+                "Bạn muốn mình lọc tiếp theo hãng hoặc tầm giá cụ thể không?",
+                reason_note,
+            ]
+        )
 
     def _build_prompt(self, customer_question: str, docs: List[ProductDocument]) -> str:
         context_lines = [doc.to_context_line() for doc in docs]
@@ -361,13 +402,29 @@ class NovaShopRAGChatbot:
 
         selected = self.vector_store.retrieve(customer_question, top_k=top_k)
         if not selected:
-            raise RuntimeError("Không tìm thấy dữ liệu trong Vector DB để trả lời.")
+            answer = self._fallback_answer(
+                customer_question,
+                [],
+                "Không truy xuất được dữ liệu sản phẩm từ các service nguồn",
+            )
+            return {
+                "answer": answer,
+                "fallback_used": True,
+                "sources": [],
+                "context_count": 0,
+            }
 
         prompt = self._build_prompt(customer_question, selected)
-        answer = self.llm.generate(prompt)
+        fallback_used = False
+        try:
+            answer = self.llm.generate(prompt)
+        except (ModelNotFoundError, RuntimeError) as ex:
+            answer = self._fallback_answer(customer_question, selected, str(ex))
+            fallback_used = True
 
         return {
             "answer": answer,
+            "fallback_used": fallback_used,
             "sources": [
                 {
                     "item_type": d.item_type,

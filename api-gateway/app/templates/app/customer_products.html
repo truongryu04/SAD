@@ -1,0 +1,500 @@
+{% extends "app/base.html" %}
+
+{% block title %}Danh sach san pham{% endblock %}
+
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+<style>
+  .z-grid { grid-template-columns: 320px 1fr; }
+  .z-lead { display: block; }
+  .z-brand { display: none; }
+  .z-header { justify-content: center; }
+  .z-nav { width: min(100%, 980px); margin: 0 auto; justify-content: space-between; }
+  .nav-left,
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+  .nav-left { min-width: 0; flex: 1; }
+  .nav-right { margin-left: auto; }
+  .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+  .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .icon-btn svg { width: 20px; height: 20px; stroke: #0f172a; }
+  .user-menu-wrap { position: relative; }
+  .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12); padding: 8px; display: none; z-index: 20; }
+  .user-menu.show { display: grid; gap: 6px; }
+  .user-menu button,
+  .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: #0f172a; cursor: pointer; }
+  .user-menu a { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+  .filter-box { display: grid; gap: 10px; }
+  .filter-title { font-weight: 900; margin-bottom: 2px; }
+  .field-inline { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 14px; background: #fff; overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1); }
+  .card-image { position: relative; height: 150px; background: linear-gradient(120deg, #dbeafe, #ecfeff); display: grid; place-items: center; font-size: 42px; }
+  .ai-pick-badge { position: absolute; top: 8px; right: 8px; background: #f59e0b; color: #111827; font-size: 11px; font-weight: 900; padding: 4px 8px; border-radius: 999px; }
+  .card-body { padding: 10px; display: grid; gap: 8px; }
+  .card-name { font-weight: 800; min-height: 40px; }
+  .card-price { font-weight: 900; color: #0f766e; }
+  .card-rating { color: #b45309; font-size: 13px; }
+  .card-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .add-cart-btn { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; background: #f0fdfa; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .add-cart-btn svg { width: 18px; height: 18px; stroke: #0f766e; }
+  .add-cart-btn:hover { background: #ccfbf1; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .toolbar .input { min-width: 220px; }
+  .ai-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; padding: 10px; }
+  .ai-title { font-weight: 800; margin-bottom: 6px; }
+  .ai-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+  .toast-wrap { position: fixed; top: 16px; right: 16px; display: grid; gap: 8px; z-index: 999; }
+  .toast { min-width: 240px; max-width: 320px; border-radius: 10px; padding: 10px 12px; color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); opacity: 0; transform: translateY(-6px); animation: toastIn 0.25s ease forwards; }
+  .toast.ok { background: #0f766e; }
+  .toast.error { background: #b91c1c; }
+  @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
+  @media (max-width: 980px) {
+    .z-grid { grid-template-columns: 1fr; }
+    .z-nav { justify-content: flex-start; }
+    .nav-left,
+    .nav-right { width: 100%; flex-wrap: wrap; }
+    .nav-right { margin-left: 0; justify-content: flex-start; }
+  }
+</style>
+{% endblock %}
+
+{% block nav %}
+  <div class="nav-left">
+    <a class="nav-link" href="/ui/customer/">Home</a>
+    <input id="keywordInput" class="input" type="search" placeholder="Search products..." style="min-width:220px;">
+  </div>
+  <div class="nav-right">
+    <div class="icon-actions">
+      <button class="nav-link" type="button" onclick="openCustomerChatbot('http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}')">Chatbot</button>
+      <button class="nav-link" type="button" onclick="loadAiSuggestions()">AI goi y</button>
+      <a class="icon-btn" href="/ui/customer/cart/" title="Gio hang" aria-label="Gio hang">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="20" r="1"></circle>
+          <circle cx="18" cy="20" r="1"></circle>
+          <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>
+        </svg>
+      </a>
+      <div class="user-menu-wrap" id="userMenuWrap">
+        <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Tai khoan" aria-label="Tai khoan">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21a8 8 0 1 0-16 0"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
+        <div id="userMenu" class="user-menu">
+          <button type="button" onclick="openProfileEditor()">Thay doi thong tin ca nhan</button>
+          <a href="/ui/logout/">Logout</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block lead %}
+  <div class="filter-box">
+    <div class="filter-title">Filter</div>
+
+    <label>Price</label>
+    <div class="field-inline">
+      <input id="priceMin" class="input" type="number" min="0" placeholder="Min">
+      <input id="priceMax" class="input" type="number" min="0" placeholder="Max">
+    </div>
+
+    <label>Brand</label>
+    <select id="brandFilter" class="select">
+      <option value="all">All</option>
+    </select>
+
+    <label>Rating</label>
+    <select id="ratingFilter" class="select">
+      <option value="0">All</option>
+      <option value="4.5">4.5+ stars</option>
+      <option value="4">4+ stars</option>
+      <option value="3">3+ stars</option>
+    </select>
+
+    <label>Color</label>
+    <select id="colorFilter" class="select">
+      <option value="all">All</option>
+      <option value="Black">Black</option>
+      <option value="White">White</option>
+      <option value="Blue">Blue</option>
+      <option value="Silver">Silver</option>
+      <option value="Green">Green</option>
+    </select>
+
+    <label>Size</label>
+    <select id="sizeFilter" class="select">
+      <option value="all">All</option>
+      <option value="S">S</option>
+      <option value="M">M</option>
+      <option value="L">L</option>
+      <option value="XL">XL</option>
+    </select>
+
+    <button class="button brand" type="button" onclick="applyFilters()">Apply filter</button>
+  </div>
+{% endblock %}
+
+{% block primary %}
+  <h2 class="h2">Danh sach san pham</h2>
+  <p class="sub">Filter + sorting + grid view.</p>
+  <div id="toastWrap" class="toast-wrap" aria-live="polite" aria-atomic="true"></div>
+
+  <div class="toolbar" style="margin-top:10px;">
+    <label for="sortSelect">Sorting</label>
+    <select id="sortSelect" class="select" style="width:auto; min-width:220px;">
+      <option value="price_asc">Price: Low to High</option>
+      <option value="price_desc">Price: High to Low</option>
+      <option value="best_selling">Best selling</option>
+      <option value="newest">Newest</option>
+    </select>
+    <button class="button soft" type="button" onclick="applyFilters()">Sort/Refresh</button>
+  </div>
+
+  <div id="status" class="status" style="margin-top:10px;"></div>
+  <div id="aiBox" class="ai-box" style="display:none;">
+    <div class="ai-title">AI goi y cho ban</div>
+    <ul id="aiList" class="ai-list"></ul>
+  </div>
+  <div id="grid" class="product-grid"></div>
+{% endblock %}
+
+{% block secondary %}{% endblock %}
+
+{% block extra %}
+  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Mo chatbot" title="Chat voi AI">💬</button>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
+  const state = { products: [], filtered: [], aiPickIds: new Set(), aiPickNames: new Set() };
+
+  function status(message, type) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + (type || 'ok');
+    el.textContent = message;
+  }
+
+  function showToast(message, type) {
+    const wrap = document.getElementById('toastWrap');
+    if (!wrap) {
+      return;
+    }
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + (type || 'ok');
+    toast.textContent = message;
+    wrap.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 2400);
+  }
+
+  function money(v) {
+    const n = Number(v || 0);
+    return Number.isFinite(n) ? n.toLocaleString('vi-VN') + ' VND' : 'N/A';
+  }
+
+  function escapeHtml(v) {
+    return String(v)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function normalizeName(v) {
+    return String(v || '').trim().toLowerCase();
+  }
+
+  function isAiPick(product) {
+    return state.aiPickIds.has(Number(product.id || 0)) || state.aiPickNames.has(normalizeName(product.name));
+  }
+
+  function markAiPicks(rows) {
+    state.aiPickIds.clear();
+    state.aiPickNames.clear();
+    (Array.isArray(rows) ? rows : []).forEach((r) => {
+      const itemId = Number(r && r.item_id);
+      if (Number.isFinite(itemId) && itemId > 0) {
+        state.aiPickIds.add(itemId);
+      }
+      const mappedId = Number(r && r.id);
+      if (Number.isFinite(mappedId) && mappedId > 0) {
+        state.aiPickIds.add(mappedId);
+      }
+      const name = normalizeName(r && r.name);
+      if (name) {
+        state.aiPickNames.add(name);
+      }
+    });
+  }
+
+  async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    let data = {};
+    try {
+      data = JSON.parse(text || '{}');
+    } catch (error) {
+      data = { message: text || 'Invalid response' };
+    }
+    if (!response.ok) {
+      throw new Error(data.error || data.message || ('Request failed: ' + response.status));
+    }
+    return data;
+  }
+
+  function enrichProduct(row) {
+    const colors = ['Black', 'White', 'Blue', 'Silver', 'Green'];
+    const sizes = ['S', 'M', 'L', 'XL'];
+    const categoryId = Number(row.category_id || 1);
+    const itemType = [2, 9, 10].includes(categoryId) ? 'laptop' : 'mobile';
+    return {
+      id: Number(row.id || 0),
+      name: String(row.name || 'Unknown'),
+      brand: String(row.brand || 'Unknown'),
+      price: Number(row.base_price || 0),
+      rating: Number((3 + ((Number(row.id || 0) % 21) / 10)).toFixed(1)),
+      color: colors[Number(row.id || 0) % colors.length],
+      size: sizes[Number(row.id || 0) % sizes.length],
+      sold: 40 + ((Number(row.id || 0) * 17) % 500),
+      createdRank: Number(row.id || 0),
+      itemType,
+      imageIcon: itemType === 'laptop' ? '💻' : '📱',
+    };
+  }
+
+  function renderBrandFilter() {
+    const select = document.getElementById('brandFilter');
+    const brands = Array.from(new Set(state.products.map((p) => p.brand))).sort();
+    select.innerHTML = '<option value="all">All</option>' + brands.map((b) => '<option value="' + escapeHtml(b) + '">' + escapeHtml(b) + '</option>').join('');
+  }
+
+  function getFilteredRows() {
+    const keyword = (document.getElementById('keywordInput').value || '').trim().toLowerCase();
+    const priceMin = Number(document.getElementById('priceMin').value || 0);
+    const priceMaxRaw = document.getElementById('priceMax').value;
+    const priceMax = priceMaxRaw === '' ? Number.MAX_SAFE_INTEGER : Number(priceMaxRaw);
+    const brand = document.getElementById('brandFilter').value;
+    const minRating = Number(document.getElementById('ratingFilter').value || 0);
+    const color = document.getElementById('colorFilter').value;
+    const size = document.getElementById('sizeFilter').value;
+
+    let rows = state.products.filter((p) => {
+      const matchKeyword = !keyword || p.name.toLowerCase().includes(keyword) || p.brand.toLowerCase().includes(keyword);
+      const matchPrice = p.price >= priceMin && p.price <= priceMax;
+      const matchBrand = brand === 'all' || p.brand === brand;
+      const matchRating = p.rating >= minRating;
+      const matchColor = color === 'all' || p.color === color;
+      const matchSize = size === 'all' || p.size === size;
+      return matchKeyword && matchPrice && matchBrand && matchRating && matchColor && matchSize;
+    });
+
+    const sortType = document.getElementById('sortSelect').value;
+    if (sortType === 'price_asc') {
+      rows.sort((a, b) => a.price - b.price);
+    } else if (sortType === 'price_desc') {
+      rows.sort((a, b) => b.price - a.price);
+    } else if (sortType === 'best_selling') {
+      rows.sort((a, b) => b.sold - a.sold);
+    } else if (sortType === 'newest') {
+      rows.sort((a, b) => b.createdRank - a.createdRank);
+    }
+
+    return rows;
+  }
+
+  function renderGrid(rows) {
+    const root = document.getElementById('grid');
+    if (!rows.length) {
+      root.innerHTML = '<div class="empty">Khong co san pham phu hop bo loc.</div>';
+      return;
+    }
+
+    root.innerHTML = rows.map((p) => (
+      '<article class="card" onclick="openProductDetail(' + p.id + ')">' +
+        '<div class="card-image">' +
+          (isAiPick(p) ? '<span class="ai-pick-badge">AI pick</span>' : '') +
+          p.imageIcon +
+        '</div>' +
+        '<div class="card-body">' +
+          '<div class="card-name">' + escapeHtml(p.name) + '</div>' +
+          '<div class="card-price">' + money(p.price) + '</div>' +
+          '<div class="card-rating">Rating: ' + p.rating.toFixed(1) + ' / 5</div>' +
+          '<div class="card-row">' +
+            '<span class="p-meta">' + escapeHtml(p.brand + ' · ' + p.color + ' · ' + p.size) + '</span>' +
+            '<button class="add-cart-btn" type="button" onclick="addToCart(event, ' + p.id + ')" title="Them vao gio hang" aria-label="Them vao gio hang">' +
+              '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+                '<circle cx="9" cy="20" r="1"></circle>' +
+                '<circle cx="18" cy="20" r="1"></circle>' +
+                '<path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>' +
+                '<path d="M12 10v5"></path>' +
+                '<path d="M9.5 12.5h5"></path>' +
+              '</svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+      '</article>'
+    )).join('');
+  }
+
+  function openProductDetail(productId) {
+    window.location.href = '/ui/customer/products/' + productId + '/';
+  }
+
+  async function addToCart(event, productId) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    try {
+      await fetchJson('/api/customer/cart-items/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: CUSTOMER_ID,
+          item_type: 'product',
+          item_id: productId,
+          quantity: 1,
+        }),
+      });
+      status('Da them vao gio hang.', 'ok');
+        showToast('Them vao gio hang thanh cong.', 'ok');
+    } catch (error) {
+      status(error.message, 'error');
+        showToast(error.message, 'error');
+    }
+  }
+
+  function applyFilters() {
+    state.filtered = getFilteredRows();
+    renderGrid(state.filtered);
+    status('Dang hien thi ' + state.filtered.length + ' san pham.', 'ok');
+  }
+
+  async function loadProducts() {
+    try {
+      const payload = await fetchJson('/api/products/');
+      const rows = Array.isArray(payload)
+        ? payload
+        : (Array.isArray(payload.data) ? payload.data : []);
+      state.products = rows.map(enrichProduct);
+      renderBrandFilter();
+      applyFilters();
+    } catch (error) {
+      status(error.message, 'error');
+      renderGrid([]);
+    }
+  }
+
+  function toggleUserMenu(event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    const menu = document.getElementById('userMenu');
+    menu.classList.toggle('show');
+  }
+
+  function closeUserMenu() {
+    const menu = document.getElementById('userMenu');
+    menu.classList.remove('show');
+  }
+
+  async function openProfileEditor() {
+    closeUserMenu();
+    if (!CUSTOMER_ID) {
+      status('Khong tim thay customer id de cap nhat.', 'error');
+      return;
+    }
+    const currentName = "{{ full_name|default:username|escapejs }}";
+    const nextName = window.prompt('Nhap ho ten moi:', currentName);
+    if (nextName === null) {
+      return;
+    }
+    const fullName = nextName.trim();
+    if (!fullName) {
+      status('Ho ten khong duoc de trong.', 'error');
+      return;
+    }
+    try {
+      await fetchJson('/api/customer/accounts/' + CUSTOMER_ID + '/', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: fullName }),
+      });
+      status('Da cap nhat thong tin ca nhan.', 'ok');
+    } catch (error) {
+      status(error.message, 'error');
+    }
+  }
+
+  function renderAiSuggestions(rows) {
+    const box = document.getElementById('aiBox');
+    const list = document.getElementById('aiList');
+    if (!Array.isArray(rows) || !rows.length) {
+      box.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+    box.style.display = 'block';
+    list.innerHTML = rows.map((r) => {
+      const label = (r.name || 'Unknown') + ' - ' + money(r.price || 0);
+      return '<li>' + escapeHtml(label) + '</li>';
+    }).join('');
+  }
+
+  async function loadAiSuggestions() {
+    try {
+      if (!CUSTOMER_ID) {
+        throw new Error('Khong tim thay customer id de lay goi y.');
+      }
+      const payload = await fetchJson('/api/ai/recommendations/' + CUSTOMER_ID + '/?limit=6');
+      const rows = Array.isArray(payload)
+        ? payload
+        : (Array.isArray(payload.data) ? payload.data : []);
+      markAiPicks(rows);
+      renderAiSuggestions(rows);
+      applyFilters();
+      status('Da tai ' + rows.length + ' goi y tu AI.', 'ok');
+    } catch (error) {
+      const fallback = state.products.slice(0, 6).map((p) => ({
+        id: p.id,
+        item_id: p.id,
+        name: p.name,
+        price: p.price,
+      }));
+      markAiPicks(fallback);
+      renderAiSuggestions(fallback);
+      applyFilters();
+      status('AI tam thoi khong kha dung, da hien thi goi y local.', 'warn');
+    }
+  }
+
+  document.getElementById('keywordInput').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      applyFilters();
+    }
+  });
+
+  window.applyFilters = applyFilters;
+  window.openProductDetail = openProductDetail;
+  window.addToCart = addToCart;
+  window.loadAiSuggestions = loadAiSuggestions;
+  window.openProfileEditor = openProfileEditor;
+
+  document.addEventListener('click', function (event) {
+    const wrap = document.getElementById('userMenuWrap');
+    if (!wrap || !wrap.contains(event.target)) {
+      closeUserMenu();
+    }
+  });
+
+  window.addEventListener('load', loadProducts);
+</script>
+{% endblock %}

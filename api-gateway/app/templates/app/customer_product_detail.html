@@ -1,0 +1,388 @@
+{% extends "app/base.html" %}
+
+{% block title %}Chi tiet san pham{% endblock %}
+
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+<style>
+  .z-grid { grid-template-columns: 1fr; }
+  .z-lead { display: none; }
+  .z-brand { display: none; }
+  .z-header { justify-content: center; }
+  .z-nav { width: min(100%, 1100px); margin: 0 auto; justify-content: space-between; }
+  .nav-left,
+  .nav-right { display: flex; align-items: center; gap: 8px; }
+  .nav-right { margin-left: auto; }
+  .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .icon-btn svg { width: 20px; height: 20px; stroke: #0f172a; }
+
+  .detail-wrap { display: grid; gap: 14px; }
+  .detail-main { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 14px; }
+  .detail-image { border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(120deg, #dbeafe, #ecfeff); min-height: 260px; display: grid; place-items: center; font-size: 86px; }
+  .detail-info { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 14px; display: grid; gap: 10px; }
+  .title { font-size: 24px; font-weight: 900; line-height: 1.2; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .price { font-size: 26px; color: #0f766e; font-weight: 900; }
+  .desc { color: #0f172a; line-height: 1.45; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  .section { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 14px; }
+  .section-title { margin: 0 0 10px; font-size: 18px; font-weight: 900; }
+  .attr-table { width: 100%; border-collapse: collapse; }
+  .attr-table th,
+  .attr-table td { border-bottom: 1px solid #e2e8f0; text-align: left; padding: 8px 6px; font-size: 14px; }
+  .attr-table th { color: #475569; font-weight: 800; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .p-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .p-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1); }
+  .p-image { height: 110px; display: grid; place-items: center; background: linear-gradient(120deg, #dbeafe, #f0fdfa); font-size: 34px; }
+  .p-body { padding: 9px; display: grid; gap: 6px; }
+  .p-name { font-weight: 800; min-height: 34px; }
+  .p-price { color: #0f766e; font-weight: 900; }
+
+  .toast-wrap { position: fixed; top: 16px; right: 16px; display: grid; gap: 8px; z-index: 999; }
+  .toast { min-width: 240px; max-width: 320px; border-radius: 10px; padding: 10px 12px; color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); opacity: 0; transform: translateY(-6px); animation: toastIn 0.25s ease forwards; }
+  .toast.ok { background: #0f766e; }
+  .toast.error { background: #b91c1c; }
+  @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
+
+  @media (max-width: 900px) {
+    .z-nav { justify-content: flex-start; }
+    .detail-main { grid-template-columns: 1fr; }
+    .nav-left,
+    .nav-right { width: 100%; flex-wrap: wrap; }
+    .nav-right { margin-left: 0; }
+  }
+</style>
+{% endblock %}
+
+{% block nav %}
+  <div class="nav-left">
+    <a class="nav-link" href="/ui/customer/">Home</a>
+    <a class="nav-link" href="/ui/customer/products/">Products</a>
+    <button class="nav-link" type="button" onclick="openCustomerChatbot('http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}')">Chatbot</button>
+  </div>
+  <div class="nav-right">
+    <a class="icon-btn" href="/ui/customer/cart/" title="Gio hang" aria-label="Gio hang">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="9" cy="20" r="1"></circle>
+        <circle cx="18" cy="20" r="1"></circle>
+        <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>
+      </svg>
+    </a>
+    <a class="nav-link" href="/ui/logout/">Logout</a>
+  </div>
+{% endblock %}
+
+{% block primary %}
+  <div id="toastWrap" class="toast-wrap" aria-live="polite" aria-atomic="true"></div>
+  <div id="status" class="status"></div>
+
+  <div class="detail-wrap">
+    <div id="detailMain" class="detail-main"></div>
+
+    <section class="section">
+      <h3 class="section-title">Thuoc tinh chi tiet</h3>
+      <div id="attributesBox"></div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">San pham tuong tu</h3>
+      <div id="similarGrid" class="grid"></div>
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">Goi y cho ban</h3>
+      <div id="suggestionGrid" class="grid"></div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block secondary %}{% endblock %}
+
+{% block extra %}
+  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Mo chatbot" title="Chat voi AI">💬</button>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
+  const PRODUCT_ID = Number("{{ product_id|default:'0' }}") || 0;
+  const state = { product: null, allProducts: [] };
+
+  function status(message, type) {
+    const el = document.getElementById('status');
+    el.className = 'status ' + (type || 'ok');
+    el.textContent = message;
+  }
+
+  function showToast(message, type) {
+    const wrap = document.getElementById('toastWrap');
+    if (!wrap) {
+      return;
+    }
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + (type || 'ok');
+    toast.textContent = message;
+    wrap.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 2400);
+  }
+
+  async function fetchJson(url, options) {
+    const response = await fetch(url, options);
+    const text = await response.text();
+    let data = {};
+    try {
+      data = JSON.parse(text || '{}');
+    } catch (error) {
+      data = { message: text || 'Invalid response' };
+    }
+    if (!response.ok) {
+      throw new Error(data.error || data.message || ('Request failed: ' + response.status));
+    }
+    return data;
+  }
+
+  function toRows(payload) {
+    if (Array.isArray(payload)) {
+      return payload;
+    }
+    if (payload && Array.isArray(payload.data)) {
+      return payload.data;
+    }
+    return [];
+  }
+
+  function money(v) {
+    const n = Number(v || 0);
+    return Number.isFinite(n) ? n.toLocaleString('vi-VN') + ' VND' : 'N/A';
+  }
+
+  function escapeHtml(v) {
+    return String(v)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function iconByCategory(categoryId) {
+    const n = Number(categoryId || 0);
+    return [2, 9, 10].includes(n) ? '💻' : '📱';
+  }
+
+  function openProductDetail(productId) {
+    if (!productId) {
+      return;
+    }
+    window.location.href = '/ui/customer/products/' + productId + '/';
+  }
+
+  function renderMain(product, categoryName) {
+    const root = document.getElementById('detailMain');
+    root.innerHTML =
+      '<div class="detail-image">' + iconByCategory(product.category_id) + '</div>' +
+      '<div class="detail-info">' +
+        '<div class="title">' + escapeHtml(product.name || 'Unknown') + '</div>' +
+        '<div class="meta">Brand: ' + escapeHtml(product.brand || 'Unknown') + ' | Category: ' + escapeHtml(categoryName || ('#' + product.category_id)) + '</div>' +
+        '<div class="price">' + money(product.base_price) + '</div>' +
+        '<div class="desc">' + escapeHtml(product.description || 'Chua co mo ta cho san pham nay.') + '</div>' +
+        '<div class="meta">Status: ' + escapeHtml(String(product.status || 'ACTIVE')) + '</div>' +
+        '<div class="cta-row">' +
+          '<button class="button brand" type="button" onclick="addToCart(' + Number(product.id || 0) + ')">Them vao gio hang</button>' +
+          '<a class="button soft" href="/ui/customer/cart/">Xem gio hang</a>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function renderAttributes(categoryAttributes, valueRows) {
+    const root = document.getElementById('attributesBox');
+    const valueByAttrId = {};
+    valueRows.forEach((row) => {
+      valueByAttrId[Number(row.attribute_id)] = row.value;
+    });
+
+    const merged = [];
+    categoryAttributes.forEach((row) => {
+      const attr = row.attribute || {};
+      const attrId = Number(row.attribute_id || 0);
+      merged.push({
+        id: attrId,
+        name: String(attr.name || ('Attribute #' + attrId)),
+        value: valueByAttrId[attrId],
+        unit: String(attr.unit || ''),
+        required: Boolean(row.is_required),
+      });
+    });
+
+    valueRows.forEach((row) => {
+      const attrId = Number(row.attribute_id || 0);
+      if (merged.some((x) => x.id === attrId)) {
+        return;
+      }
+      const attr = row.attribute || {};
+      merged.push({
+        id: attrId,
+        name: String(attr.name || ('Attribute #' + attrId)),
+        value: row.value,
+        unit: String(attr.unit || ''),
+        required: false,
+      });
+    });
+
+    if (!merged.length) {
+      root.innerHTML = '<div class="empty">Khong co thuoc tinh chi tiet cho san pham nay.</div>';
+      return;
+    }
+
+    root.innerHTML =
+      '<table class="attr-table">' +
+        '<thead><tr><th>Thuoc tinh</th><th>Gia tri</th><th>Yeu cau</th></tr></thead>' +
+        '<tbody>' +
+          merged.map((a) => (
+            '<tr>' +
+              '<td>' + escapeHtml(a.name + (a.unit ? ' (' + a.unit + ')' : '')) + '</td>' +
+              '<td>' + escapeHtml(String(a.value || 'N/A')) + '</td>' +
+              '<td>' + (a.required ? 'Co' : 'Khong') + '</td>' +
+            '</tr>'
+          )).join('') +
+        '</tbody>' +
+      '</table>';
+  }
+
+  function renderProductCards(rootId, rows, emptyMessage) {
+    const root = document.getElementById(rootId);
+    if (!rows.length) {
+      root.innerHTML = '<div class="empty">' + escapeHtml(emptyMessage) + '</div>';
+      return;
+    }
+
+    root.innerHTML = rows.map((p) => (
+      '<article class="p-card" onclick="openProductDetail(' + Number(p.id || 0) + ')">' +
+        '<div class="p-image">' + iconByCategory(p.category_id) + '</div>' +
+        '<div class="p-body">' +
+          '<div class="p-name">' + escapeHtml(p.name || 'Unknown') + '</div>' +
+          '<div class="p-price">' + money(p.base_price) + '</div>' +
+          '<button class="button soft" type="button" onclick="addToCartFromCard(event, ' + Number(p.id || 0) + ')">Them vao gio</button>' +
+        '</div>' +
+      '</article>'
+    )).join('');
+  }
+
+  function addToCartFromCard(event, productId) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    addToCart(productId);
+  }
+
+  async function addToCart(productId) {
+    try {
+      await fetchJson('/api/customer/cart-items/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_id: CUSTOMER_ID,
+          item_type: 'product',
+          item_id: Number(productId),
+          quantity: 1,
+        }),
+      });
+      status('Da them vao gio hang.', 'ok');
+      showToast('Them vao gio hang thanh cong.', 'ok');
+    } catch (error) {
+      status(error.message, 'error');
+      showToast(error.message, 'error');
+    }
+  }
+
+  async function loadPage() {
+    if (!PRODUCT_ID) {
+      status('Product id khong hop le.', 'error');
+      return;
+    }
+
+    try {
+      const [productPayload, productsPayload, categoriesPayload] = await Promise.all([
+        fetchJson('/api/products/' + PRODUCT_ID + '/'),
+        fetchJson('/api/products/'),
+        fetchJson('/api/categories/'),
+      ]);
+
+      const product = productPayload && productPayload.data ? productPayload.data : productPayload;
+      if (!product || !product.id) {
+        throw new Error('Khong tim thay san pham.');
+      }
+      state.product = product;
+      state.allProducts = toRows(productsPayload);
+      const categories = toRows(categoriesPayload);
+      const categoryNameById = {};
+      categories.forEach((c) => {
+        categoryNameById[Number(c.id)] = c.name;
+      });
+
+      let categoryAttributes = [];
+      let valueRows = [];
+      try {
+        const [categoryAttrPayload, valuePayload] = await Promise.all([
+          fetchJson('/api/category-attributes/?category_id=' + Number(product.category_id || 0)),
+          fetchJson('/api/product-attribute-values/?product_id=' + PRODUCT_ID),
+        ]);
+        categoryAttributes = toRows(categoryAttrPayload);
+        valueRows = toRows(valuePayload);
+      } catch (error) {
+        valueRows = [];
+      }
+
+      renderMain(product, categoryNameById[Number(product.category_id)]);
+      renderAttributes(categoryAttributes, valueRows);
+
+      const similarRows = state.allProducts
+        .filter((p) => Number(p.id) !== Number(PRODUCT_ID) && Number(p.category_id) === Number(product.category_id))
+        .slice(0, 6);
+      renderProductCards('similarGrid', similarRows, 'Chua co san pham tuong tu.');
+
+      let suggestionRows = [];
+      try {
+        if (!CUSTOMER_ID) {
+          throw new Error('no customer id');
+        }
+        const aiPayload = await fetchJson('/api/ai/recommendations/' + CUSTOMER_ID + '/?limit=10');
+        const aiRows = toRows(aiPayload);
+        const byId = {};
+        state.allProducts.forEach((p) => {
+          byId[Number(p.id)] = p;
+        });
+        suggestionRows = aiRows
+          .map((r) => byId[Number(r.item_id || r.id)])
+          .filter((p) => p && Number(p.id) !== Number(PRODUCT_ID))
+          .slice(0, 6);
+      } catch (error) {
+        suggestionRows = state.allProducts
+          .filter((p) => Number(p.id) !== Number(PRODUCT_ID) && Number(p.category_id) !== Number(product.category_id))
+          .slice(0, 6);
+      }
+      renderProductCards('suggestionGrid', suggestionRows, 'Chua co goi y.');
+
+      status('Da tai chi tiet san pham.', 'ok');
+    } catch (error) {
+      status(error.message, 'error');
+      document.getElementById('detailMain').innerHTML = '<div class="empty">Khong tai duoc du lieu san pham.</div>';
+      document.getElementById('attributesBox').innerHTML = '';
+      document.getElementById('similarGrid').innerHTML = '';
+      document.getElementById('suggestionGrid').innerHTML = '';
+    }
+  }
+
+  window.openProductDetail = openProductDetail;
+  window.addToCart = addToCart;
+  window.addToCartFromCard = addToCartFromCard;
+  window.addEventListener('load', loadPage);
+</script>
+{% endblock %}

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nova Chatbot</title>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
+
+    :root {
+      --bg-a: #fdf3df;
+      --bg-b: #e8f7ef;
+      --line: #e4e6dc;
+      --ink: #1f2937;
+      --muted: #667085;
+      --brand: #0f766e;
+      --brand-2: #0284c7;
+      --bot: #ecfeff;
+      --user: #dbeafe;
+      --shadow: 0 22px 40px rgba(2, 6, 23, 0.24);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Manrope", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 8% 10%, #fecaca 0, transparent 24%),
+        radial-gradient(circle at 92% 82%, #a7f3d0 0, transparent 30%),
+        linear-gradient(140deg, var(--bg-a), var(--bg-b));
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+    }
+
+    .chat-shell {
+      width: min(100%, 900px);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: #ffffff;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: grid;
+      grid-template-rows: auto auto minmax(420px, 1fr) auto;
+    }
+
+    .head {
+      background: linear-gradient(120deg, var(--brand), var(--brand-2));
+      color: #ffffff;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .title {
+      display: grid;
+      gap: 2px;
+    }
+
+    .title strong { font-size: 16px; font-weight: 800; }
+    .title small { font-size: 12px; opacity: 0.92; }
+
+    .rec-box {
+      padding: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+
+    .rec-title {
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .rec-list {
+      display: grid;
+      gap: 6px;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    }
+
+    .rec-item {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px 10px;
+      display: grid;
+      gap: 2px;
+      color: var(--ink);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .rec-item small {
+      color: #0f766e;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .messages {
+      padding: 12px;
+      display: grid;
+      gap: 9px;
+      overflow: auto;
+      max-height: 58vh;
+      background: #ffffff;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .msg { display: flex; }
+    .msg span {
+      max-width: 85%;
+      border-radius: 12px;
+      padding: 10px 12px;
+      line-height: 1.5;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid transparent;
+    }
+
+    .msg.user { justify-content: flex-end; }
+    .msg.user span { background: var(--user); border-color: #bfdbfe; color: #1e3a8a; }
+    .msg.bot span { background: var(--bot); border-color: #bae6fd; color: #0f172a; }
+
+    .form {
+      border-top: 1px solid #e2e8f0;
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      background: #fff;
+    }
+
+    .input {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      resize: vertical;
+      min-height: 64px;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      min-height: 40px;
+      padding: 0 12px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      background: #fff;
+      color: var(--ink);
+    }
+
+    button.primary {
+      border: 0;
+      background: linear-gradient(90deg, #0f766e, #0ea5a4);
+      color: #fff;
+    }
+
+    @media (max-width: 720px) {
+      .chat-shell {
+        grid-template-rows: auto auto minmax(360px, 1fr) auto;
+      }
+
+      .rec-list {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        flex-wrap: wrap;
+      }
+
+      .actions button {
+        flex: 1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="chat-shell">
+    <header class="head">
+      <div class="title">
+        <strong>Nova Assistant</strong>
+        <small>Tu van san pham voi Ollama + Recommendation</small>
+      </div>
+      <button type="button" id="refreshRec">Tai goi y</button>
+    </header>
+
+    <section class="rec-box">
+      <div class="rec-title">Goi y cho ban</div>
+      <div id="recList" class="rec-list"></div>
+    </section>
+
+    <main id="messages" class="messages"></main>
+
+    <form id="chatForm" class="form">
+      <textarea id="questionInput" class="input" placeholder="Nhap cau hoi ve san pham..." required></textarea>
+      <div class="actions">
+        <button type="button" id="clearBtn">Xoa chat</button>
+        <button class="primary" type="submit">Gui</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const CUSTOMER_ID = Number("{{ customer_id|default:'0' }}") || 0;
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function money(value) {
+      const n = Number(value || 0);
+      return Number.isFinite(n) ? n.toLocaleString("vi-VN") + " VND" : "N/A";
+    }
+
+    function apiPrefix() {
+      return window.location.pathname.startsWith("/api/ai/chat-ui/") ? "/api/ai" : "/ai";
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let data = {};
+      try {
+        data = JSON.parse(text || "{}");
+      } catch (error) {
+        data = { message: text || "Invalid response" };
+      }
+      if (!response.ok) {
+        throw new Error(data.error || data.message || ("Request failed: " + response.status));
+      }
+      return data;
+    }
+
+    function addMessage(kind, text) {
+      const box = document.getElementById("messages");
+      const row = document.createElement("div");
+      row.className = "msg " + kind;
+      row.innerHTML = "<span>" + escapeHtml(text) + "</span>";
+      box.appendChild(row);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function renderRecommendations(rows) {
+      const root = document.getElementById("recList");
+      const safeRows = Array.isArray(rows) ? rows : [];
+      if (!safeRows.length) {
+        root.innerHTML = '<div style="color:#5b6f96;font-size:12px;">Chua co goi y.</div>';
+        return;
+      }
+      root.innerHTML = safeRows.slice(0, 4).map((item) => {
+        const id = Number(item.item_id || item.id || 0);
+        const name = escapeHtml(item.name || "Unknown");
+        const price = money(item.price || item.base_price || 0);
+        if (id > 0) {
+          return '<a class="rec-item" href="/ui/customer/products/' + id + '/" target="_top">' + name + '<small>' + price + '</small></a>';
+        }
+        return '<div class="rec-item">' + name + '<small>' + price + '</small></div>';
+      }).join("");
+    }
+
+    async function loadRecommendations() {
+      if (!CUSTOMER_ID) {
+        renderRecommendations([]);
+        return;
+      }
+      try {
+        const payload = await fetchJson(apiPrefix() + "/recommendations/" + CUSTOMER_ID + "/?limit=4");
+        const rows = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : []);
+        renderRecommendations(rows);
+      } catch (error) {
+        renderRecommendations([]);
+      }
+    }
+
+    async function sendChat(question) {
+      return await fetchJson(apiPrefix() + "/chat/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question, top_k: 8 }),
+      });
+    }
+
+    document.getElementById("refreshRec").addEventListener("click", loadRecommendations);
+    document.getElementById("clearBtn").addEventListener("click", function () {
+      document.getElementById("messages").innerHTML = "";
+      addMessage("bot", "Chat da duoc lam moi.");
+    });
+
+    document.getElementById("chatForm").addEventListener("submit", async function (event) {
+      event.preventDefault();
+      const input = document.getElementById("questionInput");
+      const q = String(input.value || "").trim();
+      if (!q) {
+        return;
+      }
+
+      addMessage("user", q);
+      input.value = "";
+      input.disabled = true;
+      addMessage("bot", "Dang xu ly voi Ollama...");
+
+      try {
+        const response = await sendChat(q);
+        const box = document.getElementById("messages");
+        if (box.lastElementChild && box.lastElementChild.classList.contains("bot")) {
+          box.lastElementChild.remove();
+        }
+        addMessage("bot", response.answer || "AI khong tra loi duoc luc nay.");
+        loadRecommendations();
+      } catch (error) {
+        const box = document.getElementById("messages");
+        if (box.lastElementChild && box.lastElementChild.classList.contains("bot")) {
+          box.lastElementChild.remove();
+        }
+        addMessage("bot", "Khong the ket noi chatbot: " + error.message);
+      } finally {
+        input.disabled = false;
+        input.focus();
+      }
+    });
+
+    addMessage("bot", "Xin chao, minh la Nova Assistant.");
+    loadRecommendations();
+  </script>
+</body>
+</html>

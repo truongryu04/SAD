@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ecom Gateway{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'app/styles.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="z-page">
+    <header class="z-header panel">
+      <div class="z-brand">
+        <a class="z-logo" href="/">
+          <strong>Ecom Gateway</strong>
+        </a>
+        <small>{% block header_sub %}{% endblock %}</small>
+      </div>
+      <nav class="z-nav">
+        {% block nav %}{% endblock %}
+      </nav>
+    </header>
+
+    <main class="z-grid">
+      <section class="z-lead panel">
+        {% block lead %}{% endblock %}
+      </section>
+
+      <section class="z-primary panel">
+        {% block primary %}{% endblock %}
+      </section>
+
+      <section class="z-secondary">
+        {% block secondary %}{% endblock %}
+      </section>
+    </main>
+  </div>
+
+  {% block extra %}{% endblock %}
+  {% block scripts %}{% endblock %}
+  <script src="{% static 'app/customer_chat_embed.js' %}"></script>
+</body>
+</html>

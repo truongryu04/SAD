@@ -42,12 +42,49 @@ def _validate_quantity(quantity_value):
 
 
 def _service_url(name):
-	# resolve service base URLs from environment or defaults used in docker-compose
-	if name == "laptop":
-		return os.getenv("LAPTOP_SERVICE_URL", "http://laptop-service:8003")
-	if name == "mobile":
-		return os.getenv("MOBILE_SERVICE_URL", "http://mobile-service:8004")
+	if name == "product":
+		return os.getenv("PRODUCT_SERVICE_URL", "http://product-service:8003")
 	return None
+
+
+def _default_category_id_for_type(item_type):
+	if item_type == "laptop":
+		return 2
+	return 1
+
+
+def _category_to_item_type(category_id):
+	# Categories 2/9/10 are laptop families, others are treated as mobile-like for legacy UI.
+	if category_id in {2, 9, 10}:
+		return "laptop"
+	return "mobile"
+
+
+def _normalize_product_rows(payload):
+	if isinstance(payload, list):
+		return payload
+	if isinstance(payload, dict) and isinstance(payload.get("data"), list):
+		return payload.get("data")
+	if isinstance(payload, dict) and isinstance(payload.get("results"), list):
+		return payload.get("results")
+	return []
+
+
+def _product_to_staff_item(product):
+	category_id = int(product.get("category_id") or 1)
+	status = str(product.get("status") or "ACTIVE").upper()
+	stock = 50 if status == "ACTIVE" else 0
+	return {
+		"id": product.get("id"),
+		"item_type": _category_to_item_type(category_id),
+		"name": product.get("name") or "",
+		"brand": product.get("brand") or "",
+		"description": product.get("description") or "",
+		"price": str(product.get("base_price") or "0"),
+		"stock": stock,
+		"category_id": category_id,
+		"status": status,
+	}
 
 
 def _call_service(method, base_url, path, payload=None, timeout=15):
@@ -82,17 +119,13 @@ def _call_service(method, base_url, path, payload=None, timeout=15):
 class CreateItemView(View):
 
 	def get(self, request):
-		# Aggregate items from laptop and mobile services
-		l_status, l_data = _call_service("GET", _service_url("laptop"), "/laptops/")
-		m_status, m_data = _call_service("GET", _service_url("mobile"), "/mobiles/")
+		p_status, p_data = _call_service("GET", _service_url("product"), "/api/products/")
+		if p_status == 200:
+			rows = _normalize_product_rows(p_data)
+			combined = [_product_to_staff_item(row) for row in rows]
+			return JsonResponse({"count": len(combined), "data": combined})
 
-		combined = []
-		if l_status == 200:
-			combined = combined + (l_data.get("data") if isinstance(l_data, dict) and isinstance(l_data.get("data"), list) else (l_data if isinstance(l_data, list) else []))
-		if m_status == 200:
-			combined = combined + (m_data.get("data") if isinstance(m_data, dict) and isinstance(m_data.get("data"), list) else (m_data if isinstance(m_data, list) else []))
-
-		return JsonResponse({"count": len(combined), "data": combined})
+		return JsonResponse(p_data if isinstance(p_data, dict) else {"error": "Cannot load items."}, status=p_status)
 
 	def post(self, request):
 		body, error = _parse_json_body(request)
@@ -104,83 +137,48 @@ class CreateItemView(View):
 		price = _validate_price(body.get("price"))
 		stock = _validate_quantity(body.get("stock"))
 		description = (body.get("description") or "").strip()
+		attribute_values = body.get("attribute_values")
 
 		if not name:
 			return JsonResponse({"error": "name is required."}, status=400)
-		if item_type not in {"laptop", "mobile"}:
-			return JsonResponse({"error": "item_type must be laptop or mobile."}, status=400)
 		if price is None:
 			return JsonResponse({"error": "price must be a non-negative number."}, status=400)
 		if stock is None:
 			return JsonResponse({"error": "stock must be a non-negative integer."}, status=400)
+		if not isinstance(attribute_values, (list, dict)):
+			return JsonResponse({"error": "attribute_values is required and must be a list or object map."}, status=400)
 
-		# map fields for target service
-		# Build payload strictly following the target model fields
-		if item_type == "laptop":
-			brand = (body.get("brand") or "").strip()
-			cpu = (body.get("cpu") or "").strip()
-			ram_gb = body.get("ram_gb")
-			storage_gb = body.get("storage_gb")
+		brand = (body.get("brand") or "").strip()
+		if not brand:
+			return JsonResponse({"error": "brand is required."}, status=400)
 
-			if not brand:
-				return JsonResponse({"error": "brand is required for laptop."}, status=400)
+		category_id = body.get("category_id")
+		try:
+			if category_id is not None:
+				category_id = int(category_id)
+			else:
+				if item_type not in {"laptop", "mobile"}:
+					return JsonResponse({"error": "category_id is required when item_type is not provided."}, status=400)
+				category_id = _default_category_id_for_type(item_type)
+		except (TypeError, ValueError):
+			return JsonResponse({"error": "category_id must be an integer."}, status=400)
 
-			try:
-				ram_val = int(ram_gb) if ram_gb is not None else 8
-			except (TypeError, ValueError):
-				ram_val = 8
-			try:
-				storage_val = int(storage_gb) if storage_gb is not None else 256
-			except (TypeError, ValueError):
-				storage_val = 256
+		status_value = "ACTIVE" if stock > 0 else "INACTIVE"
+		payload = {
+			"name": name,
+			"description": description,
+			"category_id": category_id,
+			"brand": brand,
+			"base_price": str(price),
+			"status": status_value,
+			"attribute_values": attribute_values,
+		}
 
-			payload = {
-				"name": name,
-				"brand": brand,
-				"cpu": cpu,
-				"ram_gb": ram_val,
-				"storage_gb": storage_val,
-				"price": str(price),
-				"stock": stock,
-				"description": description,
-			}
-			status, data = _call_service("POST", _service_url("laptop"), "/laptops/", payload)
-		else:
-			# mobile
-			brand = (body.get("brand") or "").strip()
-			screen_size = (body.get("screen_size") or "").strip()
-			battery_mah = body.get("battery_mah")
-			camera_specs = (body.get("camera_specs") or "").strip()
+		status, data = _call_service("POST", _service_url("product"), "/api/products/", payload)
 
-			if not brand:
-				return JsonResponse({"error": "brand is required for mobile."}, status=400)
-
-			try:
-				battery_val = int(battery_mah) if battery_mah is not None else 0
-			except (TypeError, ValueError):
-				battery_val = 0
-
-			payload = {
-				"name": name,
-				"brand": brand,
-				"screen_size": screen_size,
-				"battery_mah": battery_val,
-				"camera_specs": camera_specs,
-				"price": str(price),
-				"stock": stock,
-				"description": description,
-			}
-			status, data = _call_service("POST", _service_url("mobile"), "/mobiles/", payload)
-
-		# If creation was successful and downstream returned an id, fetch full item
-		if status in (200, 201) and isinstance(data, dict) and data.get("id"):
-			created_id = data.get("id")
-			# attempt to fetch the created resource for full fields (brand, stock, ...)
-			get_status, get_data = _call_service("GET", _service_url(item_type), f"/{'laptops' if item_type=='laptop' else 'mobiles'}/{created_id}/")
-			if get_status == 200 and isinstance(get_data, dict):
-				return JsonResponse(get_data, status=201)
-			# fallback to original response if fetch failed
-		return JsonResponse(data, status=status)
+		if status in (200, 201) and isinstance(data, dict):
+			return JsonResponse(_product_to_staff_item(data), status=201)
+		return JsonResponse(data if isinstance(data, dict) else {"error": "Create failed."}, status=status)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -255,18 +253,12 @@ class StaffLoginView(View):
 class UpdateItemView(View):
 
 	def get(self, request, item_id):
-		# Try fetching from laptop service, then mobile service
-		l_status, l_data = _call_service("GET", _service_url("laptop"), f"/laptops/{item_id}/")
-		if l_status == 200:
-			return JsonResponse(l_data)
-		m_status, m_data = _call_service("GET", _service_url("mobile"), f"/mobiles/{item_id}/")
-		if m_status == 200:
-			return JsonResponse(m_data)
-		# not found or error
-		if l_status >= 400 and m_status >= 400:
+		p_status, p_data = _call_service("GET", _service_url("product"), f"/api/products/{item_id}/")
+		if p_status == 200 and isinstance(p_data, dict):
+			return JsonResponse(_product_to_staff_item(p_data), status=200)
+		if p_status == 404:
 			return JsonResponse({"error": "Item not found."}, status=404)
-		# If one of services returned an error (like 502), propagate it
-		return JsonResponse(l_data if l_status != 200 else m_data, status=(l_status if l_status != 200 else m_status))
+		return JsonResponse(p_data if isinstance(p_data, dict) else {"error": "Fetch failed."}, status=p_status)
 
 	def put(self, request, item_id):
 		return self._update_item(request, item_id)
@@ -274,88 +266,52 @@ class UpdateItemView(View):
 	def patch(self, request, item_id):
 		return self._update_item(request, item_id)
 
+	def delete(self, request, item_id):
+		p_status, p_data = _call_service("DELETE", _service_url("product"), f"/api/products/{item_id}/")
+		if p_status in (200, 204):
+			return JsonResponse({"message": "Item deleted successfully."}, status=200)
+		if p_status == 404:
+			return JsonResponse({"error": "Item not found."}, status=404)
+		return JsonResponse(p_data if isinstance(p_data, dict) else {"error": "Delete failed."}, status=p_status)
+
 	def _update_item(self, request, item_id):
 		body, error = _parse_json_body(request)
 		if error:
 			return error
 
-		# Try update on laptop service
-		# Map incoming fields to laptop/mobile payloads where appropriate
-		# First attempt laptop
-		l_payload = {}
-		m_payload = {}
-
+		# Prefer patching product-service first.
+		p_payload = {}
 		if "name" in body:
-			l_payload["name"] = body.get("name")
-			m_payload["name"] = body.get("name")
+			p_payload["name"] = body.get("name")
+		if "description" in body:
+			p_payload["description"] = body.get("description")
+		if "brand" in body:
+			p_payload["brand"] = body.get("brand")
 		if "price" in body:
 			price = _validate_price(body.get("price"))
 			if price is None:
 				return JsonResponse({"error": "price must be a non-negative number."}, status=400)
-			l_payload["price"] = str(price)
-			m_payload["price"] = str(price)
+			p_payload["base_price"] = str(price)
+		if "category_id" in body:
+			try:
+				p_payload["category_id"] = int(body.get("category_id"))
+			except (TypeError, ValueError):
+				return JsonResponse({"error": "category_id must be an integer."}, status=400)
 		if "stock" in body:
 			try:
-				quantity = int(body.get("stock"))
-				if quantity < 0:
+				qty = int(body.get("stock"))
+				if qty < 0:
 					raise ValueError()
+				p_payload["status"] = "ACTIVE" if qty > 0 else "INACTIVE"
 			except (TypeError, ValueError):
 				return JsonResponse({"error": "stock must be a non-negative integer."}, status=400)
-			l_payload["stock"] = quantity
-			m_payload["stock"] = quantity
-		if "description" in body:
-			l_payload["description"] = body.get("description")
-			m_payload["description"] = body.get("description")
-		# fields specific to laptop/mobile
-		if "brand" in body:
-			l_payload["brand"] = body.get("brand")
-			m_payload["brand"] = body.get("brand")
-		if "cpu" in body:
-			l_payload["cpu"] = body.get("cpu")
-		if "ram_gb" in body:
-			try:
-				l_payload["ram_gb"] = int(body.get("ram_gb"))
-			except (TypeError, ValueError):
-				return JsonResponse({"error": "ram_gb must be an integer."}, status=400)
-		if "storage_gb" in body:
-			try:
-				l_payload["storage_gb"] = int(body.get("storage_gb"))
-			except (TypeError, ValueError):
-				return JsonResponse({"error": "storage_gb must be an integer."}, status=400)
-		if "screen_size" in body:
-			m_payload["screen_size"] = body.get("screen_size")
-		if "battery_mah" in body:
-			try:
-				m_payload["battery_mah"] = int(body.get("battery_mah"))
-			except (TypeError, ValueError):
-				return JsonResponse({"error": "battery_mah must be an integer."}, status=400)
-		if "camera_specs" in body:
-			m_payload["camera_specs"] = body.get("camera_specs")
 
-		# Try laptop update
-		l_status, l_data = (0, {})
-		if l_payload:
-			l_status, l_data = _call_service("PATCH", _service_url("laptop"), f"/laptops/{item_id}/", l_payload)
-		else:
-			# attempt patch with empty payload to check existence
-			l_status, l_data = _call_service("GET", _service_url("laptop"), f"/laptops/{item_id}/")
+		if p_payload:
+			p_status, p_data = _call_service("PATCH", _service_url("product"), f"/api/products/{item_id}/", p_payload)
+			if p_status == 200 and isinstance(p_data, dict):
+				return JsonResponse(_product_to_staff_item(p_data), status=200)
+			if p_status == 404:
+				return JsonResponse({"error": "Item not found."}, status=404)
+			return JsonResponse(p_data if isinstance(p_data, dict) else {"error": "Update failed."}, status=p_status)
 
-		if l_status == 200 and l_payload:
-			return JsonResponse(l_data, status=200)
-
-		# Try mobile update
-		m_status, m_data = (0, {})
-		if m_payload:
-			m_status, m_data = _call_service("PATCH", _service_url("mobile"), f"/mobiles/{item_id}/", m_payload)
-		else:
-			m_status, m_data = _call_service("GET", _service_url("mobile"), f"/mobiles/{item_id}/")
-
-		if m_status == 200 and m_payload:
-			return JsonResponse(m_data, status=200)
-
-		# If neither updated, return appropriate error
-		if l_status >= 400 and m_status >= 400:
-			# prefer returning service error details if available
-			return JsonResponse(l_data if l_status >= m_status else m_data, status=(l_status if l_status >= m_status else m_status))
-		# else return whatever found
-		return JsonResponse(l_data if l_status == 200 else m_data, status=200)
+		return JsonResponse({"error": "No valid fields to update."}, status=400)

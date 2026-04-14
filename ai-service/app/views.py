@@ -2,12 +2,13 @@ import json
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from .models import AIRequest
-from .chatbot import NovaShopRAGChatbot
+from .chatbot import EcomRAGChatbot
 from .recommender import ProductRecommenderService
 
 
@@ -88,9 +89,27 @@ class HealthView(View):
         return JsonResponse({"status": "ok"})
 
 
+class AIChatUiView(View):
+    def get(self, request):
+        customer_id_raw = request.GET.get("customer_id", "0")
+        try:
+            customer_id = max(0, int(customer_id_raw))
+        except (TypeError, ValueError):
+            customer_id = 0
+
+        return render(
+            request,
+            "app/chat_ui.html",
+            {
+                "customer_id": customer_id,
+            },
+        )
+
+
 class ProductRecommendationView(View):
     def get(self, request, customer_id):
         limit_raw = request.GET.get("limit", "20")
+        mode = (request.GET.get("mode") or "hybrid").strip().lower()
         try:
             limit = int(limit_raw)
         except (TypeError, ValueError):
@@ -102,22 +121,48 @@ class ProductRecommendationView(View):
 
         recommender = ProductRecommenderService(
             customer_service_url=settings.CUSTOMER_SERVICE_URL,
+            product_service_url=settings.PRODUCT_SERVICE_URL,
             laptop_service_url=settings.LAPTOP_SERVICE_URL,
             mobile_service_url=settings.MOBILE_SERVICE_URL,
         )
 
         try:
-            recommendations = recommender.recommend(customer_id=customer_id, limit=limit)
+            if mode == "activity":
+                recommendations = recommender.recommend(customer_id=customer_id, limit=limit)
+            elif mode == "graph":
+                recommendations = recommender.recommend_graph(customer_id=customer_id, limit=limit)
+            elif mode == "hybrid":
+                recommendations = recommender.recommend_hybrid(customer_id=customer_id, limit=limit)
+            else:
+                return JsonResponse({"error": "mode must be one of: hybrid, activity, graph."}, status=400)
         except Exception as ex:
             return JsonResponse({"error": f"Failed to generate recommendations: {ex}"}, status=502)
 
         return JsonResponse(
             {
                 "customer_id": customer_id,
+                "mode": mode,
                 "count": len(recommendations),
                 "data": recommendations,
             }
         )
+
+
+# Recommendation từ graph (ví dụ demo)
+@method_decorator(csrf_exempt, name="dispatch")
+class RecommendationFromGraphView(View):
+    def get(self, request):
+        product_id = int(request.GET.get("product_id", 0))
+        mode = request.GET.get("mode", "same_category")
+        limit = int(request.GET.get("limit", 10))
+        recommender = ProductRecommenderService(
+            customer_service_url=settings.CUSTOMER_SERVICE_URL,
+            product_service_url=settings.PRODUCT_SERVICE_URL,
+            laptop_service_url=settings.LAPTOP_SERVICE_URL,
+            mobile_service_url=settings.MOBILE_SERVICE_URL,
+        )
+        data = recommender.recommend_from_graph(product_id, mode, limit)
+        return JsonResponse({"recommendations": data})
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -141,9 +186,8 @@ class NovaChatbotView(View):
             return JsonResponse({"error": "top_k must be > 0."}, status=400)
         top_k = min(top_k, 15)
 
-        bot = NovaShopRAGChatbot(
-            laptop_service_url=settings.LAPTOP_SERVICE_URL,
-            mobile_service_url=settings.MOBILE_SERVICE_URL,
+        bot = EcomRAGChatbot(
+            product_service_url=settings.PRODUCT_SERVICE_URL,
             ollama_base_url=settings.OLLAMA_BASE_URL,
             ollama_model=settings.OLLAMA_MODEL,
         )

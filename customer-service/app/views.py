@@ -2,7 +2,9 @@ import json
 import urllib.error
 import urllib.request
 import os
+from datetime import datetime, timezone
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
@@ -11,19 +13,50 @@ from django.views.decorators.csrf import csrf_exempt
 from .models import Cart, CartItem, CustomerAccount, Rating, SearchHistory, UserActivity
 
 
+def _utc_now_iso():
+	return datetime.now(timezone.utc).isoformat()
+
+
+def _emit_kb_behavior_event(customer_id, event_type, product_id=None, query=None, rating=None, timestamp=None):
+	# Fire-and-forget sync so business APIs stay responsive even when KB is unavailable.
+	kb_base_url = getattr(settings, "KB_SERVICE_URL", "").strip()
+	if not kb_base_url:
+		return
+
+	payload = {
+		"customer_id": int(customer_id),
+		"event_type": str(event_type or "").upper(),
+		"timestamp": timestamp or _utc_now_iso(),
+	}
+	if product_id is not None:
+		payload["product_id"] = int(product_id)
+	if query:
+		payload["query"] = str(query)
+	if rating is not None:
+		payload["rating"] = float(rating)
+
+	request = urllib.request.Request(
+		url=f"{kb_base_url.rstrip('/')}/api/kb/behavior/",
+		method="POST",
+		headers={"Content-Type": "application/json", "Accept": "application/json"},
+		data=json.dumps(payload).encode("utf-8"),
+	)
+	try:
+		with urllib.request.urlopen(request, timeout=5):
+			return
+	except (urllib.error.HTTPError, urllib.error.URLError, ValueError, TypeError):
+		# Never break user flow because of telemetry sync failures.
+		return
+
+
 def _build_cart_response(cart):
 	# Build cart response with item details fetched from services
 	items = []
 	total = 0
 	for it in cart.items.all():
-		if it.item_type == "laptop":
-			status, data = _call_service("GET", _service_url("laptop"), f"/laptops/{it.item_id}/")
-			name = data.get("name") if isinstance(data, dict) else None
-			price = data.get("price") if isinstance(data, dict) else None
-		else:
-			status, data = _call_service("GET", _service_url("mobile"), f"/mobiles/{it.item_id}/")
-			name = data.get("name") if isinstance(data, dict) else None
-			price = data.get("price") if isinstance(data, dict) else None
+		status, data = _call_service("GET", _service_url("product"), f"/api/products/{it.item_id}/")
+		name = data.get("name") if isinstance(data, dict) else None
+		price = data.get("base_price") if isinstance(data, dict) else None
 
 		try:
 			price_num = float(price) if price is not None else 0
@@ -203,6 +236,64 @@ class LoginView(View):
 
 
 @method_decorator(csrf_exempt, name="dispatch")
+class CustomerAccountView(View):
+	def get(self, request):
+		query = (request.GET.get("q") or "").strip().lower()
+		active_text = (request.GET.get("is_active") or "").strip().lower()
+
+		accounts = CustomerAccount.objects.all().order_by("-id")
+		if query:
+			accounts = accounts.filter(username__icontains=query)
+		if active_text in {"true", "false"}:
+			accounts = accounts.filter(is_active=(active_text == "true"))
+
+		rows = [
+			{
+				"id": item.id,
+				"username": item.username,
+				"full_name": item.full_name,
+				"role": item.role,
+				"is_active": item.is_active,
+				"created_at": item.created_at.isoformat() if item.created_at else None,
+			}
+			for item in accounts
+		]
+
+		return JsonResponse({"count": len(rows), "data": rows})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CustomerAccountDetailView(View):
+	def patch(self, request, customer_id):
+		body, error = _parse_json_body(request)
+		if error:
+			return error
+
+		customer = CustomerAccount.objects.filter(id=customer_id).first()
+		if customer is None:
+			return JsonResponse({"error": "Customer not found."}, status=404)
+
+		if "full_name" in body:
+			customer.full_name = (body.get("full_name") or "").strip()
+
+		if "is_active" in body:
+			customer.is_active = bool(body.get("is_active"))
+
+		customer.save(update_fields=["full_name", "is_active"])
+
+		return JsonResponse(
+			{
+				"id": customer.id,
+				"username": customer.username,
+				"full_name": customer.full_name,
+				"role": customer.role,
+				"is_active": customer.is_active,
+				"created_at": customer.created_at.isoformat() if customer.created_at else None,
+			}
+		)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
 class SearchItemView(View):
 	def get(self, request):
 		keyword = (request.GET.get("q") or "").strip()
@@ -215,22 +306,26 @@ class SearchItemView(View):
 			customer = CustomerAccount.objects.filter(id=customer_id).first()
 
 		SearchHistory.objects.create(customer=customer, keyword=keyword)
+		if customer is not None:
+			_emit_kb_behavior_event(
+				customer_id=customer.id,
+				event_type="SEARCHED",
+				query=keyword,
+			)
 
 		return JsonResponse(
 			{
 				"message": "Search keyword recorded successfully.",
 				"keyword": keyword,
 				"customer_id": customer.id if customer else None,
-				"next": "Use api-gateway to query laptop-service/mobile-service by keyword.",
+				"next": "Use api-gateway to query product-service by keyword.",
 			}
 		)
 
 
 def _service_url(name):
-	if name == "laptop":
-		return os.getenv("LAPTOP_SERVICE_URL", "http://laptop-service:8003")
-	if name == "mobile":
-		return os.getenv("MOBILE_SERVICE_URL", "http://mobile-service:8004")
+	if name == "product":
+		return os.getenv("PRODUCT_SERVICE_URL", "http://product-service:8003")
 	return None
 
 
@@ -264,7 +359,7 @@ class AddCartItemView(View):
 		cart_id = body.get("cart_id")
 		# support product_id (frontend) as alias for item_id
 		item_id = body.get("item_id") or body.get("product_id") or body.get("productId")
-		item_type = (body.get("item_type") or "").strip().lower()
+		item_type = (body.get("item_type") or "product").strip().lower()
 		quantity = body.get("quantity") or 1
 
 		# If cart_id not provided, allow creating/finding cart by customer_id
@@ -287,8 +382,8 @@ class AddCartItemView(View):
 			if cart is None:
 				return JsonResponse({"error": "Cart not found."}, status=404)
 
-		if item_type not in {"laptop", "mobile"} or item_id is None:
-			return JsonResponse({"error": "item_type (laptop|mobile) and item_id are required."}, status=400)
+		if item_id is None:
+			return JsonResponse({"error": "item_id is required."}, status=400)
 
 		try:
 			qty = int(quantity)
@@ -297,7 +392,14 @@ class AddCartItemView(View):
 		except (TypeError, ValueError):
 			return JsonResponse({"error": "quantity must be a positive integer."}, status=400)
 
-		ci = CartItem.objects.create(cart=cart, item_type=item_type, item_id=int(item_id), quantity=qty)
+		product_status, product_data = _call_service("GET", _service_url("product"), f"/api/products/{int(item_id)}/")
+		if product_status >= 400:
+			return JsonResponse(
+				product_data if isinstance(product_data, dict) else {"error": "Product not found."},
+				status=product_status,
+			)
+
+		ci = CartItem.objects.create(cart=cart, item_type=item_type or "product", item_id=int(item_id), quantity=qty)
 		_log_activity(
 			customer=cart.customer,
 			action=UserActivity.ACTION_ADD_TO_CART,
@@ -306,57 +408,98 @@ class AddCartItemView(View):
 			quantity=qty,
 			metadata={"cart_id": cart.id, "cart_item_id": ci.id},
 		)
+		_emit_kb_behavior_event(
+			customer_id=cart.customer_id,
+			event_type="ADDED_TO_CART",
+			product_id=int(item_id),
+		)
 
-		# Build cart response with item details fetched from services
-		items = []
-		total = 0
-		for it in cart.items.all():
-			if it.item_type == "laptop":
-				status, data = _call_service("GET", _service_url("laptop"), f"/laptops/{it.item_id}/")
-				name = data.get("name") if isinstance(data, dict) else None
-				price = data.get("price") if isinstance(data, dict) else None
-			else:
-				status, data = _call_service("GET", _service_url("mobile"), f"/mobiles/{it.item_id}/")
-				name = data.get("name") if isinstance(data, dict) else None
-				price = data.get("price") if isinstance(data, dict) else None
-
-			try:
-				price_num = float(price) if price is not None else 0
-			except Exception:
-				price_num = 0
-
-			line_total = price_num * it.quantity
-			total += line_total
-
-			items.append({
-				"id": it.id,
-				"item_type": it.item_type,
-				"item_id": it.item_id,
-				"name": name or "Không có tên",
-				"quantity": it.quantity,
-				"price": price_num,
-				"line_total": line_total,
-			})
-
-		response = {
-			"id": cart.id,
-			"customer_id": cart.customer.id,
-			"items_count": cart.items.count(),
-			"total": total,
-			"items": items,
-		}
+		response = _build_cart_response(cart)
 		return JsonResponse(response)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ManageCartItemView(View):
+	def patch(self, request, cart_item_id):
+		body, error = _parse_json_body(request)
+		if error:
+			return error
+
+		quantity = body.get("quantity")
+		try:
+			qty = int(quantity)
+			if qty <= 0:
+				raise ValueError()
+		except (TypeError, ValueError):
+			return JsonResponse({"error": "quantity must be a positive integer."}, status=400)
+
+		cart_item = CartItem.objects.select_related("cart", "cart__customer").filter(id=cart_item_id).first()
+		if cart_item is None:
+			return JsonResponse({"error": "Cart item not found."}, status=404)
+
+		cart_item.quantity = qty
+		cart_item.save(update_fields=["quantity"])
+
+		response = _build_cart_response(cart_item.cart)
+		return JsonResponse(response, status=200)
+
+	def delete(self, request, cart_item_id):
+		cart_item = CartItem.objects.select_related("cart", "cart__customer").filter(id=cart_item_id).first()
+		if cart_item is None:
+			return JsonResponse({"error": "Cart item not found."}, status=404)
+
+		cart = cart_item.cart
+		cart_item.delete()
+
+		response = _build_cart_response(cart)
+		return JsonResponse(response, status=200)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ClearCartView(View):
+	def post(self, request):
+		body, error = _parse_json_body(request)
+		if error:
+			return error
+
+		cart = None
+		cart_id = body.get("cart_id")
+		customer_id = body.get("customer_id")
+
+		if cart_id is not None:
+			cart = Cart.objects.filter(id=cart_id).first()
+		elif customer_id is not None:
+			customer = CustomerAccount.objects.filter(id=customer_id, is_active=True).first()
+			if customer is None:
+				return JsonResponse({"error": "Customer not found or inactive."}, status=404)
+			cart = Cart.objects.filter(customer=customer).order_by("-id").first()
+
+		if cart is None:
+			return JsonResponse({"error": "Cart not found."}, status=404)
+
+		deleted_items = cart.items.count()
+		cart.items.all().delete()
+
+		return JsonResponse(
+			{
+				"message": "Cart cleared.",
+				"cart_id": cart.id,
+				"customer_id": cart.customer_id,
+				"deleted_items": deleted_items,
+			},
+			status=200,
+		)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class ProductRatingView(View):
 	def get(self, request):
-		item_type = (request.GET.get("item_type") or "").strip().lower()
+		item_type = (request.GET.get("item_type") or "product").strip().lower()
 		item_id = request.GET.get("item_id")
 		customer_id = request.GET.get("customer_id")
 
-		if item_type not in {"laptop", "mobile"}:
-			return JsonResponse({"error": "item_type must be laptop or mobile."}, status=400)
+		if not item_type:
+			return JsonResponse({"error": "item_type is required."}, status=400)
 		if item_id is None:
 			return JsonResponse({"error": "item_id is required."}, status=400)
 
@@ -399,7 +542,7 @@ class ProductRatingView(View):
 			return error
 
 		customer_id = body.get("customer_id")
-		item_type = (body.get("item_type") or "").strip().lower()
+		item_type = (body.get("item_type") or "product").strip().lower()
 		item_id = body.get("item_id")
 		score = body.get("score")
 		review = (body.get("review") or "").strip()
@@ -409,8 +552,8 @@ class ProductRatingView(View):
 				{"error": "customer_id, item_id and score are required."},
 				status=400,
 			)
-		if item_type not in {"laptop", "mobile"}:
-			return JsonResponse({"error": "item_type must be laptop or mobile."}, status=400)
+		if not item_type:
+			return JsonResponse({"error": "item_type is required."}, status=400)
 
 		try:
 			cid = int(customer_id)
@@ -574,6 +717,20 @@ class UserActivityView(View):
 			rating_score=parsed_rating,
 			metadata=metadata if isinstance(metadata, dict) else {},
 		)
+
+		if parsed_item_id is not None:
+			if action == UserActivity.ACTION_VIEW_PRODUCT:
+				_emit_kb_behavior_event(
+					customer_id=customer.id,
+					event_type="VIEWED",
+					product_id=parsed_item_id,
+				)
+			elif action == UserActivity.ACTION_ADD_TO_CART:
+				_emit_kb_behavior_event(
+					customer_id=customer.id,
+					event_type="ADDED_TO_CART",
+					product_id=parsed_item_id,
+				)
 
 		return JsonResponse(
 			{

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý khách hàng</title>
+    <link rel="stylesheet" href="{% static 'app/staff_common.css' %}">
+</head>
+<body>
+    <div class="dashboard-shell">
+        <aside id="sidebar" class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">EC</div>
+                <div class="brand-text">
+                    <h1>EMCommerce</h1>
+                    <p>Staff Console</p>
+                </div>
+            </div>
+
+            <p class="menu-label">Điều hướng</p>
+            <ul class="nav-menu">
+                <li><a class="nav-link" href="/ui/staff/">Dashboard</a></li>
+                <li><a class="nav-link" href="/ui/staff/products/">Quản lý sản phẩm</a></li>
+                <li><a class="nav-link" href="/ui/staff/categories/">Quản lý danh mục</a></li>
+                <li><a class="nav-link" href="/ui/staff/orders/">Quản lý đơn hàng</a></li>
+                <li><a class="nav-link active" href="/ui/staff/customers/">Quản lý khách hàng</a></li>
+                <li><a class="nav-link" href="#">Quản lý nhân viên / admin</a></li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="left-tools">
+                    <button id="menuToggle" class="menu-toggle" type="button" aria-label="Mở menu">☰</button>
+                    <div class="search-box">
+                        <span>🔎</span>
+                        <input id="keywordInput" type="text" placeholder="Tìm theo username, họ tên hoặc ID...">
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" type="button" aria-label="Thông báo">🔔<span class="badge">5</span></button>
+                    <button class="icon-btn" type="button" aria-label="Tin nhắn">💬<span class="badge" style="background: var(--primary-dark);">2</span></button>
+
+                    <div id="profileTrigger" class="profile-wrap" role="button" tabindex="0" aria-label="Mở menu profile">
+                        <div class="avatar">{{ full_name|default:username|slice:":2"|upper }}</div>
+                        <div class="profile-meta">
+                            <strong>{{ full_name|default:username }}</strong>
+                            <span>Mã NV: {{ user_id }}</span>
+                        </div>
+                    </div>
+
+                    <div id="profileMenu" class="profile-menu" aria-label="Menu profile">
+                        <button type="button">Profile</button>
+                        <button type="button">Cài đặt</button>
+                        <a href="/ui/logout/" style="color: var(--danger);">Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <section class="dashboard-body">
+                <div class="hero">
+                    <div>
+                        <h2>Danh sách khách hàng</h2>
+                        <p>Quản lý tài khoản khách hàng, tạo tài khoản mới và thay đổi trạng thái hoạt động.</p>
+                    </div>
+                    <button class="btn btn-primary" type="button" id="addBtn">+ Thêm khách hàng</button>
+                </div>
+
+                <section class="panel">
+                    <div class="controls">
+                        <input id="searchInput" class="field" type="text" placeholder="Nhập username, họ tên hoặc ID...">
+                        <select id="activeFilter" class="select">
+                            <option value="all">Tất cả trạng thái</option>
+                            <option value="active">Đang hoạt động</option>
+                            <option value="inactive">Đã khóa</option>
+                        </select>
+                        <button id="reloadBtn" class="btn" type="button">Tải lại danh sách</button>
+                    </div>
+                    <div id="statusBox" class="status-box"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Username</th>
+                                    <th>Họ tên</th>
+                                    <th>Role</th>
+                                    <th>Trạng thái</th>
+                                    <th>Ngày tạo</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customerTableBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination">
+                        <div id="pageInfo">Hiển thị 0 khách hàng</div>
+                        <div class="pager-btns" id="pagerButtons"></div>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <div id="customerModal" class="modal" aria-hidden="true">
+        <div class="modal-card">
+            <h3 class="modal-title" id="modalTitle">Thêm khách hàng</h3>
+            <form id="customerForm">
+                <div class="form-grid">
+                    <input id="fUsername" class="field" type="text" placeholder="Username" required>
+                    <input id="fFullName" class="field" type="text" placeholder="Họ tên">
+                    <input id="fPassword" class="field" type="password" placeholder="Mật khẩu">
+                    <select id="fIsActive" class="select">
+                        <option value="true">Đang hoạt động</option>
+                        <option value="false">Đã khóa</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button id="cancelBtn" class="btn" type="button">Hủy</button>
+                    <button class="btn btn-primary" type="submit">Lưu</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="{% static 'app/staff_common.js' %}"></script>
+    <script>
+        const state = {
+            customers: [],
+            filtered: [],
+            page: 1,
+            pageSize: 8,
+            editingId: null,
+        };
+
+        initStaffCommonUI();
+
+        const searchInput = document.getElementById("searchInput");
+        const keywordInput = document.getElementById("keywordInput");
+        const activeFilter = document.getElementById("activeFilter");
+        const reloadBtn = document.getElementById("reloadBtn");
+        const addBtn = document.getElementById("addBtn");
+        const statusBox = document.getElementById("statusBox");
+        const customerTableBody = document.getElementById("customerTableBody");
+        const pageInfo = document.getElementById("pageInfo");
+        const pagerButtons = document.getElementById("pagerButtons");
+
+        const customerModal = document.getElementById("customerModal");
+        const customerForm = document.getElementById("customerForm");
+        const modalTitle = document.getElementById("modalTitle");
+        const cancelBtn = document.getElementById("cancelBtn");
+        const fUsername = document.getElementById("fUsername");
+        const fFullName = document.getElementById("fFullName");
+        const fPassword = document.getElementById("fPassword");
+        const fIsActive = document.getElementById("fIsActive");
+
+        function showStatus(message, type) {
+            statusBox.className = "status-box " + type;
+            statusBox.textContent = message;
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const text = await response.text();
+            let data = {};
+            try {
+                data = JSON.parse(text || "{}");
+            } catch (error) {
+                data = { message: text || "Phản hồi không hợp lệ." };
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || "Yêu cầu thất bại.");
+            }
+            return data;
+        }
+
+        function normalizeCustomers(payload) {
+            const rows = Array.isArray(payload && payload.data) ? payload.data : [];
+            return rows.map((item) => {
+                return {
+                    id: Number(item.id || 0),
+                    username: String(item.username || ""),
+                    fullName: String(item.full_name || ""),
+                    role: String(item.role || "CUSTOMER"),
+                    isActive: Boolean(item.is_active),
+                    createdAt: String(item.created_at || ""),
+                };
+            });
+        }
+
+        function formatDate(value) {
+            if (!value) {
+                return "-";
+            }
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) {
+                return value;
+            }
+            return d.toLocaleString("vi-VN");
+        }
+
+        async function loadCustomers() {
+            try {
+                const payload = await fetchJson("/api/customer/accounts/");
+                state.customers = normalizeCustomers(payload);
+                applyFilters();
+                showStatus("Đã tải danh sách khách hàng.", "ok");
+            } catch (error) {
+                showStatus(error.message, "error");
+            }
+        }
+
+        function applyFilters() {
+            const textA = searchInput.value.trim().toLowerCase();
+            const textB = keywordInput.value.trim().toLowerCase();
+            const keyword = textB || textA;
+            const filterValue = activeFilter.value;
+
+            state.filtered = state.customers.filter((c) => {
+                const matchKeyword = !keyword
+                    || c.username.toLowerCase().includes(keyword)
+                    || c.fullName.toLowerCase().includes(keyword)
+                    || String(c.id).includes(keyword);
+
+                let matchActive = true;
+                if (filterValue === "active") {
+                    matchActive = c.isActive;
+                } else if (filterValue === "inactive") {
+                    matchActive = !c.isActive;
+                }
+                return matchKeyword && matchActive;
+            });
+
+            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+            if (state.page > pageCount) {
+                state.page = pageCount;
+            }
+
+            renderCustomers();
+            renderPagination();
+        }
+
+        function renderCustomers() {
+            if (!state.filtered.length) {
+                customerTableBody.innerHTML = "<tr><td colspan='7'>Không có khách hàng phù hợp.</td></tr>";
+                pageInfo.textContent = "Hiển thị 0 khách hàng";
+                return;
+            }
+
+            const start = (state.page - 1) * state.pageSize;
+            const end = start + state.pageSize;
+            const rows = state.filtered.slice(start, end);
+
+            customerTableBody.innerHTML = rows.map((c) => (
+                "<tr>"
+                + "<td>#" + c.id + "</td>"
+                + "<td>" + c.username + "</td>"
+                + "<td>" + (c.fullName || "-") + "</td>"
+                + "<td>" + c.role + "</td>"
+                + "<td><span class='tag " + (c.isActive ? "instock" : "out") + "'>" + (c.isActive ? "Đang hoạt động" : "Đã khóa") + "</span></td>"
+                + "<td>" + formatDate(c.createdAt) + "</td>"
+                + "<td><div class='actions'>"
+                + "<button class='btn btn-xs' onclick='openEdit(" + c.id + ")'>Sửa</button>"
+                + "<button class='btn btn-xs " + (c.isActive ? "btn-danger" : "") + "' onclick='toggleActive(" + c.id + ")'>" + (c.isActive ? "Khóa" : "Mở khóa") + "</button>"
+                + "</div></td>"
+                + "</tr>"
+            )).join("");
+
+            pageInfo.textContent = "Hiển thị " + (start + 1) + " - " + Math.min(end, state.filtered.length)
+                + " / " + state.filtered.length + " khách hàng";
+        }
+
+        function renderPagination() {
+            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+            let html = "";
+            html += "<button class='btn' type='button' " + (state.page === 1 ? "disabled" : "") + " onclick='changePage(" + (state.page - 1) + ")'>Trước</button>";
+            for (let page = 1; page <= pageCount; page += 1) {
+                const activeClass = page === state.page ? " active" : "";
+                html += "<button class='page-num" + activeClass + "' type='button' onclick='changePage(" + page + ")'>" + page + "</button>";
+            }
+            html += "<button class='btn' type='button' " + (state.page === pageCount ? "disabled" : "") + " onclick='changePage(" + (state.page + 1) + ")'>Sau</button>";
+            pagerButtons.innerHTML = html;
+        }
+
+        function changePage(page) {
+            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+            if (page < 1 || page > pageCount) {
+                return;
+            }
+            state.page = page;
+            renderCustomers();
+            renderPagination();
+        }
+
+        function openAdd() {
+            state.editingId = null;
+            modalTitle.textContent = "Thêm khách hàng";
+            customerForm.reset();
+            fPassword.required = true;
+            fUsername.disabled = false;
+            customerModal.classList.add("show");
+        }
+
+        function openEdit(id) {
+            const customer = state.customers.find((item) => item.id === id);
+            if (!customer) {
+                showStatus("Không tìm thấy khách hàng.", "error");
+                return;
+            }
+
+            state.editingId = id;
+            modalTitle.textContent = "Sửa khách hàng #" + id;
+            fUsername.value = customer.username;
+            fFullName.value = customer.fullName;
+            fIsActive.value = customer.isActive ? "true" : "false";
+            fPassword.value = "";
+            fPassword.required = false;
+            fUsername.disabled = true;
+            customerModal.classList.add("show");
+        }
+
+        function closeModal() {
+            customerModal.classList.remove("show");
+        }
+
+        async function toggleActive(id) {
+            const customer = state.customers.find((item) => item.id === id);
+            if (!customer) {
+                return;
+            }
+
+            try {
+                await fetchJson("/api/customer/accounts/" + id + "/", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ is_active: !customer.isActive }),
+                });
+                showStatus("Đã cập nhật trạng thái khách hàng #" + id + ".", "ok");
+                await loadCustomers();
+            } catch (error) {
+                showStatus(error.message, "error");
+            }
+        }
+
+        async function saveCustomer(event) {
+            event.preventDefault();
+
+            const username = fUsername.value.trim();
+            const fullName = fFullName.value.trim();
+            const password = fPassword.value;
+            const isActive = fIsActive.value === "true";
+
+            try {
+                if (state.editingId) {
+                    await fetchJson("/api/customer/accounts/" + state.editingId + "/", {
+                        method: "PATCH",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ full_name: fullName, is_active: isActive }),
+                    });
+                    showStatus("Đã cập nhật khách hàng #" + state.editingId + ".", "ok");
+                } else {
+                    if (!username || !password) {
+                        showStatus("Username và mật khẩu là bắt buộc.", "error");
+                        return;
+                    }
+                    await fetchJson("/api/customer/register/", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            username: username,
+                            password: password,
+                            full_name: fullName,
+                        }),
+                    });
+                    showStatus("Đã tạo tài khoản khách hàng mới.", "ok");
+                }
+
+                closeModal();
+                await loadCustomers();
+            } catch (error) {
+                showStatus(error.message, "error");
+            }
+        }
+
+        addBtn.addEventListener("click", openAdd);
+        cancelBtn.addEventListener("click", closeModal);
+        customerModal.addEventListener("click", function (event) {
+            if (event.target === customerModal) {
+                closeModal();
+            }
+        });
+
+        customerForm.addEventListener("submit", saveCustomer);
+        reloadBtn.addEventListener("click", loadCustomers);
+
+        searchInput.addEventListener("input", function () {
+            state.page = 1;
+            applyFilters();
+        });
+
+        keywordInput.addEventListener("input", function () {
+            state.page = 1;
+            applyFilters();
+        });
+
+        activeFilter.addEventListener("change", function () {
+            state.page = 1;
+            applyFilters();
+        });
+
+        window.openEdit = openEdit;
+        window.toggleActive = toggleActive;
+        window.changePage = changePage;
+
+        loadCustomers();
+    </script>
+</body>
+</html>

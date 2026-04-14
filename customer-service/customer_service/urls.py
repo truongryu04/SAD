@@ -17,14 +17,18 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
-from app.views import AddCartItemView, CreateCartView, LoginView, ProductRatingView, RegisterCustomerView, SearchItemView, UserActivityView
+from app.views import AddCartItemView, ClearCartView, CreateCartView, CustomerAccountDetailView, CustomerAccountView, LoginView, ManageCartItemView, ProductRatingView, RegisterCustomerView, SearchItemView, UserActivityView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('customer/register/', RegisterCustomerView.as_view(), name='customer-register'),
     path('customer/login/', LoginView.as_view(), name='customer-login'),
+    path('customer/accounts/', CustomerAccountView.as_view(), name='customer-accounts'),
+    path('customer/accounts/<int:customer_id>/', CustomerAccountDetailView.as_view(), name='customer-account-detail'),
     path('customer/carts/', CreateCartView.as_view(), name='create-cart'),
     path('customer/carts/items/', AddCartItemView.as_view(), name='add-cart-item'),
+    path('customer/carts/items/<int:cart_item_id>/', ManageCartItemView.as_view(), name='manage-cart-item'),
+    path('customer/carts/clear/', ClearCartView.as_view(), name='clear-cart'),
     path('customer/search/', SearchItemView.as_view(), name='search-item'),
     path('customer/ratings/', ProductRatingView.as_view(), name='product-rating'),
     path('customer/activities/', UserActivityView.as_view(), name='user-activity'),

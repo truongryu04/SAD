@@ -1,645 +1,127 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NovaShop Customer</title>
-    <style>
-        @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap");
-
-        :root {
-            --bg-a: #fdf3df;
-            --bg-b: #e8f7ef;
-            --card: #fffefa;
-            --line: #e4e6dc;
-            --ink: #1f2937;
-            --muted: #667085;
-            --brand: #0f766e;
-            --brand-soft: #ccfbf1;
-            --accent: #f59e0b;
-            --danger: #b91c1c;
-            --shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: "Manrope", sans-serif;
-            color: var(--ink);
-            background:
-                radial-gradient(circle at 8% 10%, #fecaca 0, transparent 24%),
-                radial-gradient(circle at 92% 82%, #a7f3d0 0, transparent 30%),
-                linear-gradient(140deg, var(--bg-a), var(--bg-b));
-        }
-
-        .page {
-            max-width: 1280px;
-            margin: 0 auto;
-            padding: 16px;
-            display: grid;
-            gap: 16px;
-        }
-
-        .panel {
-            border: 1px solid var(--line);
-            border-radius: 22px;
-            background: rgba(255, 255, 255, 0.9);
-            box-shadow: var(--shadow);
-            backdrop-filter: blur(8px);
-        }
-
-        .topbar {
-            position: sticky;
-            top: 12px;
-            z-index: 20;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-        }
-
-        .brand h1 {
-            margin: 0;
-            font-size: 24px;
-            line-height: 1;
-        }
-
-        .brand p {
-            margin: 6px 0 0;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .actions {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .input,
-        .select,
-        .button {
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            font: inherit;
-            min-height: 42px;
-            padding: 0 12px;
-            background: #fff;
-        }
-
-        .input { min-width: 260px; }
-
-        .input:focus,
-        .select:focus {
-            outline: none;
-            border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
-        }
-
-        .button {
-            cursor: pointer;
-            font-weight: 700;
-        }
-
-        .button.brand {
-            border: 0;
-            background: linear-gradient(90deg, #0f766e, #0ea5a4);
-            color: #fff;
-        }
-
-        .button.soft {
-            background: #f1f5f9;
-            color: #334155;
-        }
-
-        .button.warn {
-            border: 0;
-            background: #fee2e2;
-            color: var(--danger);
-        }
-
-        .layout {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 16px;
-            align-items: start;
-        }
-
-        .main-col {
-            display: grid;
-            gap: 16px;
-        }
-
-        .catalog {
-            padding: 16px;
-            display: grid;
-            gap: 14px;
-        }
-
-        .catalog-head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .catalog-head h2 {
-            margin: 0;
-            font-size: 20px;
-        }
-
-        .catalog-head p {
-            margin: 0;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-            gap: 12px;
-        }
-
-        .recommend-wrap {
-            display: grid;
-            gap: 10px;
-        }
-
-        .recommend-title {
-            margin: 0;
-            font-size: 18px;
-        }
-
-        .recommend-sub {
-            margin: 0;
-            color: var(--muted);
-            font-size: 13px;
-        }
-
-        .card {
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            background: var(--card);
-            overflow: hidden;
-            display: grid;
-            min-height: 100%;
-        }
-
-        .thumb {
-            height: 120px;
-            display: grid;
-            place-items: center;
-            font-size: 38px;
-            background: linear-gradient(125deg, #f0fdfa, #fefce8);
-            position: relative;
-        }
-
-        .chip {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            border-radius: 999px;
-            padding: 5px 10px;
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            background: rgba(255, 255, 255, 0.95);
-            border: 1px solid var(--line);
-        }
-
-        .body {
-            padding: 12px;
-            display: grid;
-            gap: 8px;
-        }
-
-        .name {
-            font-size: 16px;
-            font-weight: 800;
-            line-height: 1.3;
-            min-height: 40px;
-        }
-
-        .meta {
-            color: var(--muted);
-            font-size: 12px;
-            line-height: 1.5;
-            min-height: 36px;
-        }
-
-        .row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
-        .price {
-            font-size: 15px;
-            font-weight: 800;
-            color: #0f766e;
-        }
-
-        .empty {
-            border: 1px dashed #cbd5e1;
-            border-radius: 12px;
-            padding: 12px;
-            text-align: center;
-            color: var(--muted);
-            background: #f8fafc;
-            font-size: 13px;
-        }
-
-        .chat-box {
-            padding: 16px;
-            display: grid;
-            gap: 12px;
-        }
-
-        .chat-fab {
-            position: fixed;
-            right: 18px;
-            bottom: 18px;
-            width: 62px;
-            height: 62px;
-            border: 0;
-            border-radius: 999px;
-            z-index: 55;
-            cursor: pointer;
-            color: #fff;
-            font-size: 28px;
-            background: linear-gradient(145deg, #0891b2, #0f766e);
-            box-shadow: 0 14px 30px rgba(15, 118, 110, 0.35);
-            transition: transform 0.15s ease, box-shadow 0.2s ease;
-        }
-
-        .chat-fab:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 20px 32px rgba(15, 118, 110, 0.4);
-        }
-
-        .chat-panel {
-            position: fixed;
-            right: 18px;
-            bottom: 90px;
-            width: min(380px, calc(100vw - 24px));
-            border-radius: 18px;
-            border: 1px solid #cce7dd;
-            background: #ffffff;
-            box-shadow: 0 22px 40px rgba(2, 6, 23, 0.24);
-            z-index: 56;
-            overflow: hidden;
-            display: none;
-        }
-
-        .chat-panel.open {
-            display: block;
-            animation: chatPop 0.2s ease;
-        }
-
-        .chat-panel-head {
-            background: linear-gradient(120deg, #0f766e, #0284c7);
-            color: #fff;
-            padding: 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .chat-panel-head h3 {
-            margin: 0;
-            font-size: 15px;
-            font-weight: 800;
-        }
-
-        .chat-panel-head p {
-            margin: 2px 0 0;
-            font-size: 12px;
-            opacity: 0.92;
-        }
-
-        .chat-head-actions {
-            display: flex;
-            gap: 6px;
-        }
-
-        .chat-head-btn {
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 8px;
-            min-height: 30px;
-            padding: 0 10px;
-            font: inherit;
-            font-size: 12px;
-            color: #fff;
-            background: rgba(255, 255, 255, 0.1);
-            cursor: pointer;
-        }
-
-        .chat-body {
-            padding: 12px;
-            display: grid;
-            gap: 10px;
-        }
-
-        .chat-window {
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            background: #fff;
-            min-height: 280px;
-            max-height: 320px;
-            overflow-y: auto;
-            padding: 12px;
-            display: grid;
-            gap: 10px;
-        }
-
-        .chat-msg {
-            max-width: 86%;
-            border-radius: 12px;
-            padding: 10px 12px;
-            font-size: 14px;
-            line-height: 1.5;
-            word-break: break-word;
-        }
-
-        .chat-msg.user {
-            justify-self: end;
-            background: #dbeafe;
-            border: 1px solid #bfdbfe;
-            color: #1e3a8a;
-        }
-
-        .chat-msg.bot {
-            justify-self: start;
-            background: #ecfeff;
-            border: 1px solid #bae6fd;
-            color: #0f172a;
-        }
-
-        .chat-meta {
-            margin-top: 8px;
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .chat-source {
-            font-size: 11px;
-            padding: 4px 8px;
-            border-radius: 999px;
-            border: 1px solid var(--line);
-            background: #f8fafc;
-            color: #475569;
-        }
-
-        .chat-form {
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 10px;
-        }
-
-        .chat-tip {
-            margin: 0;
-            color: #64748b;
-            font-size: 12px;
-        }
-
-        @keyframes chatPop {
-            from { transform: translateY(8px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .chat-input {
-            min-height: 46px;
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            padding: 0 12px;
-            font: inherit;
-        }
-
-        .chat-input:focus {
-            outline: none;
-            border-color: var(--brand);
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.15);
-        }
-
-        .status {
-            border-radius: 12px;
-            padding: 10px;
-            font-size: 13px;
-            display: none;
-        }
-
-        .status.ok {
-            display: block;
-            background: #dcfce7;
-            color: #166534;
-            border: 1px solid #bbf7d0;
-        }
-
-        .status.error {
-            display: block;
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fecaca;
-        }
-
-        .modal-bg {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(2, 6, 23, 0.62);
-            padding: 12px;
-            z-index: 40;
-        }
-
-        .modal {
-            width: min(760px, 98vw);
-            max-height: 84vh;
-            overflow: auto;
-            background: #fff;
-            border-radius: 16px;
-            border: 1px solid var(--line);
-            padding: 16px;
-        }
-
-        .modal-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 12px;
-        }
-
-        .stars {
-            display: flex;
-            gap: 6px;
-            margin-top: 8px;
-        }
-
-        .star {
-            border: 0;
-            background: transparent;
-            color: #cbd5e1;
-            font-size: 26px;
-            cursor: pointer;
-            line-height: 1;
-            padding: 0;
-        }
-
-        .star.active { color: #f59e0b; }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            text-align: left;
-            padding: 8px;
-            border-bottom: 1px solid #eef2f7;
-            font-size: 13px;
-        }
-
-        @media (max-width: 980px) {
-            .layout { grid-template-columns: 1fr; }
-        }
-
-        @media (max-width: 680px) {
-            .topbar {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .actions { width: 100%; }
-            .input { min-width: 0; width: 100%; }
-            .cards { grid-template-columns: 1fr; }
-            .chat-fab {
-                right: 14px;
-                bottom: 14px;
-                width: 56px;
-                height: 56px;
-            }
-            .chat-panel {
-                right: 8px;
-                bottom: 78px;
-                width: calc(100vw - 16px);
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="page">
-        <header class="topbar panel">
-            <div class="brand">
-                <h1>NovaShop Customer</h1>
-                <p>Hello <strong>{{ full_name|default:username }}</strong> · Customer ID: {{ user_id }}</p>
+{% extends "app/base.html" %}
+
+{% block title %}Trang chu khach hang{% endblock %}
+
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+<style>
+    .z-grid { grid-template-columns: 1fr; }
+    .z-lead { display: none; }
+    .z-brand { display: none; }
+    .z-header { justify-content: center; }
+    .z-nav { width: min(100%, 980px); margin: 0 auto; }
+    .home-header { display: grid; gap: 10px; }
+    .top-header { display: grid; grid-template-columns: minmax(120px, 160px) minmax(260px, 1fr) auto; gap: 10px; align-items: center; }
+    .logo-badge { font-weight: 800; padding: 10px 12px; border-radius: 12px; background: #0ea5a4; color: #fff; text-align: center; }
+    .search-wrap { display: flex; gap: 8px; }
+    .search-wrap .input { min-width: 220px; }
+    .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-left: auto; }
+    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .icon-btn svg { width: 20px; height: 20px; stroke: #0f172a; }
+    .user-menu-wrap { position: relative; }
+    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12); padding: 8px; display: none; z-index: 20; }
+    .user-menu.show { display: grid; gap: 6px; }
+    .user-menu button,
+    .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: #0f172a; cursor: pointer; }
+    .user-menu a { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+    .cat-strip { display: flex; align-items: center; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 10px; scrollbar-gutter: stable both-edges; }
+    .cat-chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 12px; font-weight: 700; cursor: pointer; white-space: nowrap; line-height: 1.2; }
+    .cat-chip.active { background: #0ea5a4; color: #fff; border-color: #0ea5a4; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+    .p-card { border: 1px solid var(--line); border-radius: 14px; background: #fff; overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .p-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1); }
+    .p-image { position: relative; height: 130px; background: linear-gradient(120deg, #dbeafe, #f0fdfa); display: grid; place-items: center; font-size: 40px; }
+    .ai-pick-badge { position: absolute; top: 8px; right: 8px; background: #f59e0b; color: #111827; font-size: 11px; font-weight: 900; padding: 4px 8px; border-radius: 999px; }
+    .p-body { padding: 10px; display: grid; gap: 8px; }
+    .p-name { font-weight: 800; min-height: 40px; }
+    .p-meta { color: var(--muted); font-size: 12px; }
+    .p-row { display: flex; justify-content: space-between; align-items: center; }
+    .p-price { font-weight: 900; color: #0f766e; }
+    .add-cart-btn { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; background: #f0fdfa; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .add-cart-btn svg { width: 18px; height: 18px; stroke: #0f766e; }
+    .add-cart-btn:hover { background: #ccfbf1; }
+    .ai-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; padding: 10px; }
+    .ai-title { font-weight: 800; margin-bottom: 6px; }
+    .ai-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: #0f172a; }
+    .toast-wrap { position: fixed; top: 16px; right: 16px; display: grid; gap: 8px; z-index: 999; }
+    .toast { min-width: 240px; max-width: 320px; border-radius: 10px; padding: 10px 12px; color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); opacity: 0; transform: translateY(-6px); animation: toastIn 0.25s ease forwards; }
+    .toast.ok { background: #0f766e; }
+    .toast.error { background: #b91c1c; }
+    @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 980px) {
+        .top-header { grid-template-columns: 1fr; }
+        .icon-actions { justify-content: flex-start; margin-left: 0; }
+    }
+</style>
+{% endblock %}
+
+{% block nav %}
+    <div class="home-header" style="width:min(100%,980px);">
+        <div class="top-header">
+            <div class="logo-badge">EMCommerce</div>
+            <div class="search-wrap">
+                <input id="searchInput" class="input" type="search" placeholder="Tim san pham theo ten hoac thuong hieu...">
+                <button class="button brand" type="button" onclick="applySearch()">Search</button>
             </div>
-            <div class="actions">
-                <select id="category" class="select" onchange="applyFilter()">
-                    <option value="all">All categories</option>
-                    <option value="laptop">Laptop</option>
-                    <option value="mobile">Mobile</option>
-                </select>
-                <input id="search" class="input" type="search" placeholder="Search by name, brand, cpu, camera...">
-                <button class="button brand" onclick="searchProducts()">Search</button>
-                <a class="button soft" href="/ui/customer/cart/" style="text-decoration:none; display:inline-grid; place-items:center;">My Cart</a>
-                <a class="button warn" href="/ui/logout/" style="text-decoration:none; display:inline-grid; place-items:center;">Logout</a>
-            </div>
-        </header>
-
-        <section id="status" class="status"></section>
-
-        <div class="layout">
-            <div class="main-col">
-                <section class="catalog panel">
-                    <div class="catalog-head">
-                        <div>
-                            <h2>Product Catalog</h2>
-                            <p>Browse mobile and laptop products from microservices.</p>
-                        </div>
-                        <button class="button soft" onclick="refreshProducts()">Reload</button>
+            <div class="icon-actions">
+                <a class="nav-link" href="/ui/customer/products/">Categories</a>
+                <button class="nav-link" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" onclick="openCustomerChatbot(this.dataset.chatUrl)">Chatbot</button>
+                <button class="nav-link" type="button" onclick="loadAiSuggestions()">AI goi y</button>
+                <a class="icon-btn" href="/ui/customer/cart/" title="Gio hang" aria-label="Gio hang">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="9" cy="20" r="1"></circle>
+                        <circle cx="18" cy="20" r="1"></circle>
+                        <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>
+                    </svg>
+                </a>
+                <div class="user-menu-wrap" id="userMenuWrap">
+                    <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Tai khoan" aria-label="Tai khoan">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21a8 8 0 1 0-16 0"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </button>
+                    <div id="userMenu" class="user-menu">
+                        <button type="button" onclick="openProfileEditor()">Thay doi thong tin ca nhan</button>
+                        <a href="/ui/logout/">Logout</a>
                     </div>
-                    <div id="cards" class="cards"></div>
-                </section>
-
-                <section class="catalog panel">
-                    <div class="catalog-head">
-                        <div class="recommend-wrap">
-                            <h2 class="recommend-title">Recommended Products</h2>
-                            <p class="recommend-sub">Personalized suggestions from AI service based on your activities.</p>
-                        </div>
-                        <button class="button soft" onclick="loadRecommendations()">Refresh Suggestions</button>
-                    </div>
-                    <div id="recommend-cards" class="cards"></div>
-                </section>
-
+                </div>
             </div>
-
         </div>
+        <div id="categoryStrip" class="cat-strip"></div>
     </div>
+{% endblock %}
 
-    <button id="chat-fab" class="chat-fab" type="button" aria-label="Open chatbot" onclick="toggleChatbot()">🤖</button>
-
-    <aside id="chat-panel" class="chat-panel" aria-hidden="true">
-        <div class="chat-panel-head">
-            <div>
-                <h3>Nova AI Assistant</h3>
-                <p>Tu van san pham theo nhu cau cua ban</p>
-            </div>
-            <div class="chat-head-actions">
-                <button class="chat-head-btn" type="button" onclick="clearChat()">Clear</button>
-                <button class="chat-head-btn" type="button" onclick="toggleChatbot()">Close</button>
-            </div>
-        </div>
-        <div class="chat-body">
-            <div id="chat-window" class="chat-window"></div>
-            <p class="chat-tip">Goi y: "Laptop duoi 20 trieu cho lap trinh", "Dien thoai chup anh tot"</p>
-            <form class="chat-form" onsubmit="event.preventDefault(); sendChat();">
-                <input
-                    id="chat-input"
-                    class="chat-input"
-                    type="text"
-                    placeholder="Nhap cau hoi cho Nova..."
-                    maxlength="500"
-                >
-                <button id="chat-send-btn" type="submit" class="button brand">Send</button>
-            </form>
-        </div>
-    </aside>
-
-    <div id="product-modal-bg" class="modal-bg">
-        <div class="modal">
-            <div class="modal-top">
-                <h3 id="product-modal-title" style="margin:0;">Product Detail</h3>
-                <button class="button soft" onclick="closeProductModal()">Close</button>
-            </div>
-            <div id="product-modal-content"></div>
-            <div style="margin-top:10px;">
-                <strong>Your Rating</strong>
-                <div id="rating-stars" class="stars"></div>
-                <div id="rating-summary" style="font-size:13px; color:#64748b; margin-top:6px;"></div>
-            </div>
-        </div>
+{% block primary %}
+    <h2 class="h2">San pham noi bat</h2>
+    <p class="sub">Du lieu duoc lay tu product-service va category-service qua API Gateway.</p>
+    <div id="toastWrap" class="toast-wrap" aria-live="polite" aria-atomic="true"></div>
+    <div id="status" class="status" style="margin-top:10px;"></div>
+    <div id="aiBox" class="ai-box" style="display:none;">
+        <div class="ai-title">AI goi y cho ban</div>
+        <ul id="aiList" class="ai-list"></ul>
     </div>
+    <div id="productGrid" class="product-grid"></div>
+{% endblock %}
 
+{% block secondary %}{% endblock %}
+
+{% block extra %}
+    <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Mo chatbot" title="Chat voi AI">💬</button>
+{% endblock %}
+
+{% block scripts %}
     <script>
-        const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
-        const state = {
-            products: [],
-            filtered: [],
-            recommendations: [],
-            selectedProduct: null,
-            chatOpened: false,
-        };
+                const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
+                const state = {
+                        products: [],
+                        categories: [],
+                        activeCategory: "all",
+                        keyword: "",
+                    aiPickIds: new Set(),
+                    aiPickNames: new Set(),
+                };
 
         function money(v) {
             const n = Number(v || 0);
@@ -650,6 +132,20 @@
             const el = document.getElementById("status");
             el.className = "status " + (type || "ok");
             el.textContent = message;
+        }
+
+        function showToast(message, type) {
+            const wrap = document.getElementById("toastWrap");
+            if (!wrap) {
+                return;
+            }
+            const toast = document.createElement("div");
+            toast.className = "toast " + (type || "ok");
+            toast.textContent = message;
+            wrap.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 2400);
         }
 
         async function fetchJson(url, options) {
@@ -668,363 +164,383 @@
             return data;
         }
 
-        function normalize(type, row) {
+        function normalize(row) {
+            const categoryId = Number(row.category_id || 0);
+            const isLaptop = [2, 9, 10].includes(categoryId);
             return {
                 id: row.id,
-                type,
+                itemType: isLaptop ? "laptop" : "mobile",
                 name: row.name || "Unknown",
                 brand: row.brand || "Unknown",
-                price: row.price || 0,
-                stock: row.stock || 0,
-                meta: type === "laptop"
-                    ? ((row.cpu || "CPU?") + " · " + (row.ram_gb || "?") + "GB RAM · " + (row.storage_gb || "?") + "GB")
-                    : ((row.camera_specs || "Camera?") + " · " + (row.screen_size || "?") + "in · " + (row.battery_mah || "?") + "mAh"),
-                icon: type === "laptop" ? "💻" : "📱"
+                price: row.base_price || 0,
+                stock: String(row.status || "ACTIVE").toUpperCase() === "ACTIVE" ? 50 : 0,
+                categoryId,
+                categoryName: "",
+                icon: "📦"
             };
         }
 
-        async function refreshProducts() {
+        function resolveCategoryIcon(categoryName, categoryId) {
+            const name = String(categoryName || "").trim().toLowerCase();
+            if (name.includes("laptop") || name.includes("dell") || name.includes("asus")) {
+                return "💻";
+            }
+            if (name.includes("dien thoai") || name.includes("apple") || name.includes("samsung") || name.includes("xiaomi")) {
+                return "📱";
+            }
+            if (name.includes("may tinh bang") || name.includes("tablet")) {
+                return "📲";
+            }
+            if (name.includes("dong ho")) {
+                return "⌚";
+            }
+            if (name.includes("phu kien") || name.includes("accessory") || name.includes("phu kien cong nghe")) {
+                return "🎧";
+            }
+
+            // Fallback by known seed IDs if category name is missing.
+            const cid = Number(categoryId || 0);
+            if ([2, 9, 10].includes(cid)) {
+                return "💻";
+            }
+            if ([1, 6, 7, 8].includes(cid)) {
+                return "📱";
+            }
+            if (cid === 3) {
+                return "📲";
+            }
+            if (cid === 4) {
+                return "⌚";
+            }
+            if (cid === 5) {
+                return "🎧";
+            }
+            return "📦";
+        }
+
+        function normalizeName(v) {
+            return String(v || "").trim().toLowerCase();
+        }
+
+        function isAiPick(product) {
+            return state.aiPickIds.has(Number(product.id || 0)) || state.aiPickNames.has(normalizeName(product.name));
+        }
+
+        function markAiPicks(rows) {
+            state.aiPickIds.clear();
+            state.aiPickNames.clear();
+            (Array.isArray(rows) ? rows : []).forEach((r) => {
+                const itemId = Number(r && r.item_id);
+                if (Number.isFinite(itemId) && itemId > 0) {
+                    state.aiPickIds.add(itemId);
+                }
+                const mappedId = Number(r && r.id);
+                if (Number.isFinite(mappedId) && mappedId > 0) {
+                    state.aiPickIds.add(mappedId);
+                }
+                const name = normalizeName(r && r.name);
+                if (name) {
+                    state.aiPickNames.add(name);
+                }
+            });
+        }
+
+        async function loadInitialData() {
             try {
-                const keyword = (document.getElementById("search").value || "").trim();
-                const query = keyword ? ("?q=" + encodeURIComponent(keyword)) : "";
-                const [laptops, mobiles] = await Promise.all([
-                    fetchJson("/api/laptops/" + query),
-                    fetchJson("/api/mobiles/" + query),
+                const [productPayload, categoryPayload] = await Promise.all([
+                    fetchJson("/api/products/"),
+                    fetchJson("/api/categories/"),
                 ]);
+                const rows = Array.isArray(productPayload)
+                    ? productPayload
+                    : (Array.isArray(productPayload.data) ? productPayload.data : []);
+                state.products = rows.map(normalize);
+                state.categories = Array.isArray(categoryPayload)
+                    ? categoryPayload
+                    : (Array.isArray(categoryPayload.data) ? categoryPayload.data : []);
 
-                const laptopRows = Array.isArray(laptops.data) ? laptops.data : [];
-                const mobileRows = Array.isArray(mobiles.data) ? mobiles.data : [];
+                const nameById = {};
+                state.categories.forEach((c) => {
+                    nameById[Number(c.id)] = c.name;
+                });
+                state.products = state.products.map((p) => ({
+                    ...p,
+                    categoryName: nameById[p.categoryId] || ("Danh muc #" + p.categoryId),
+                    icon: resolveCategoryIcon(nameById[p.categoryId], p.categoryId),
+                }));
 
-                state.products = [
-                    ...laptopRows.map((r) => normalize("laptop", r)),
-                    ...mobileRows.map((r) => normalize("mobile", r)),
-                ];
-
-                applyFilter(false);
-                status("Products loaded successfully.", "ok");
+                renderCategoryStrip();
+                renderProducts();
+                status("Da tai danh sach san pham.", "ok");
             } catch (error) {
                 status(error.message, "error");
             }
         }
 
-        async function searchProducts() {
-            const keyword = (document.getElementById("search").value || "").trim();
-            try {
-                if (keyword) {
-                    await fetchJson("/api/customer/search/?q=" + encodeURIComponent(keyword) + "&customer_id=" + CUSTOMER_ID);
-                }
-            } catch (error) {
-                // Keep catalog search working even if search-history API fails.
-            }
-            await refreshProducts();
+        function renderCategoryStrip() {
+            const root = document.getElementById("categoryStrip");
+            const chips = ['<button class="cat-chip ' + (state.activeCategory === 'all' ? 'active' : '') + '" type="button" onclick="setCategory(\'all\')">Tat ca</button>'];
+            state.categories.forEach((c) => {
+                const active = state.activeCategory === String(c.id) ? "active" : "";
+                chips.push('<button class="cat-chip ' + active + '" type="button" onclick="setCategory(\'' + c.id + '\')">' + escapeHtml(c.name || ("Category " + c.id)) + '</button>');
+            });
+            root.innerHTML = chips.join("");
         }
 
-        function applyFilter(skipRenderMessage) {
-            const category = document.getElementById("category").value;
-            state.filtered = category === "all"
-                ? state.products.slice()
-                : state.products.filter((p) => p.type === category);
+        function setCategory(categoryId) {
+            state.activeCategory = String(categoryId);
+            renderCategoryStrip();
             renderProducts();
-            if (!skipRenderMessage) {
-                status("Showing " + state.filtered.length + " product(s).", "ok");
+        }
+
+        function getFilteredProducts() {
+            return state.products.filter((p) => {
+                const matchCategory = state.activeCategory === "all" || String(p.categoryId) === state.activeCategory;
+                const q = state.keyword.toLowerCase();
+                const matchKeyword = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+                return matchCategory && matchKeyword;
+            });
+        }
+
+        function pickAllRowsWithCategoryCoverage(rows, limit) {
+            if (!Array.isArray(rows) || rows.length <= limit) {
+                return Array.isArray(rows) ? rows : [];
             }
+
+            const grouped = new Map();
+            rows.forEach((p) => {
+                const key = String(p.categoryId || 0);
+                if (!grouped.has(key)) {
+                    grouped.set(key, []);
+                }
+                grouped.get(key).push(p);
+            });
+
+            const orderedKeys = [];
+            state.categories.forEach((c) => {
+                const key = String(c.id);
+                if (grouped.has(key)) {
+                    orderedKeys.push(key);
+                }
+            });
+            grouped.forEach((_, key) => {
+                if (!orderedKeys.includes(key)) {
+                    orderedKeys.push(key);
+                }
+            });
+
+            const selected = [];
+            const selectedIds = new Set();
+
+            // Round 1: take at least one product from each available category.
+            orderedKeys.forEach((key) => {
+                if (selected.length >= limit) {
+                    return;
+                }
+                const first = grouped.get(key)[0];
+                if (!first) {
+                    return;
+                }
+                selected.push(first);
+                selectedIds.add(Number(first.id));
+            });
+
+            // Round 2: fill remaining slots by original order.
+            rows.forEach((p) => {
+                if (selected.length >= limit) {
+                    return;
+                }
+                const pid = Number(p.id);
+                if (!selectedIds.has(pid)) {
+                    selected.push(p);
+                    selectedIds.add(pid);
+                }
+            });
+
+            return selected;
         }
 
         function renderProducts() {
-            const root = document.getElementById("cards");
-            if (!state.filtered.length) {
-                root.innerHTML = '<div class="empty">No products found for current filter.</div>';
+            const root = document.getElementById("productGrid");
+            let rows = getFilteredProducts();
+            if (state.activeCategory === "all") {
+                rows = pickAllRowsWithCategoryCoverage(rows, 15);
+            }
+            if (!rows.length) {
+                root.innerHTML = '<div class="empty">Khong tim thay san pham phu hop.</div>';
                 return;
             }
 
-            root.innerHTML = state.filtered.map((p) => (
-                '<article class="card">' +
-                    '<div class="thumb"><span class="chip">' + p.type.toUpperCase() + '</span>' + p.icon + '</div>' +
-                    '<div class="body">' +
-                        '<div class="name">' + escapeHtml(p.name) + '</div>' +
-                        '<div class="meta">' + escapeHtml(p.brand + ' · ' + p.meta) + '</div>' +
-                        '<div class="row">' +
-                            '<span class="price">' + money(p.price) + '</span>' +
-                            '<span>Stock: <strong>' + Number(p.stock || 0) + '</strong></span>' +
-                        '</div>' +
-                        '<div class="row">' +
-                            '<button class="button soft" onclick="showDetail(\'' + p.type + '\',' + p.id + ')">Detail</button>' +
-                            '<button class="button brand" onclick="addToCart(\'' + p.type + '\',' + p.id + ')">Add Cart</button>' +
+            root.innerHTML = rows.map((p) => (
+                '<article class="p-card" onclick="openProductDetail(' + p.id + ')">' +
+                    '<div class="p-image">' +
+                        (isAiPick(p) ? '<span class="ai-pick-badge">AI pick</span>' : '') +
+                        p.icon +
+                    '</div>' +
+                    '<div class="p-body">' +
+                        '<div class="p-name">' + escapeHtml(p.name) + '</div>' +
+                        '<div class="p-meta">' + escapeHtml(p.brand + ' · ' + p.categoryName) + '</div>' +
+                        '<div class="p-row">' +
+                            '<span class="p-price">' + money(p.price) + '</span>' +
+                            '<button class="add-cart-btn" type="button" onclick="addToCart(event, ' + p.id + ')" title="Them vao gio hang" aria-label="Them vao gio hang">' +
+                                '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+                                    '<circle cx="9" cy="20" r="1"></circle>' +
+                                    '<circle cx="18" cy="20" r="1"></circle>' +
+                                    '<path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>' +
+                                    '<path d="M12 10v5"></path>' +
+                                    '<path d="M9.5 12.5h5"></path>' +
+                                '</svg>' +
+                            '</button>' +
                         '</div>' +
                     '</div>' +
                 '</article>'
-            )).join("");
+            )).join('');
         }
 
-        function renderRecommendations() {
-            const root = document.getElementById("recommend-cards");
-            const items = Array.isArray(state.recommendations) ? state.recommendations : [];
+        function openProductDetail(productId) {
+            window.location.href = '/ui/customer/products/' + productId + '/';
+        }
 
-            if (!items.length) {
-                root.innerHTML = '<div class="empty">No recommendations yet. Interact with products to improve suggestions.</div>';
+        async function addToCart(event, productId) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            try {
+                await fetchJson('/api/customer/cart-items/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        customer_id: CUSTOMER_ID,
+                        item_type: 'product',
+                        item_id: productId,
+                        quantity: 1,
+                    }),
+                });
+                status('Da them vao gio hang.', 'ok');
+                showToast('Them vao gio hang thanh cong.', 'ok');
+            } catch (error) {
+                status(error.message, 'error');
+                showToast(error.message, 'error');
+            }
+        }
+
+        function applySearch() {
+            state.keyword = (document.getElementById("searchInput").value || "").trim();
+            renderProducts();
+        }
+
+        function toggleUserMenu(event) {
+            if (event) {
+                event.stopPropagation();
+            }
+            const menu = document.getElementById("userMenu");
+            menu.classList.toggle("show");
+        }
+
+        function closeUserMenu() {
+            const menu = document.getElementById("userMenu");
+            menu.classList.remove("show");
+        }
+
+        async function openProfileEditor() {
+            closeUserMenu();
+            if (!CUSTOMER_ID) {
+                status("Khong tim thay customer id de cap nhat.", "error");
                 return;
             }
+            const currentName = "{{ full_name|default:username|escapejs }}";
+            const nextName = window.prompt("Nhap ho ten moi:", currentName);
+            if (nextName === null) {
+                return;
+            }
+            const fullName = nextName.trim();
+            if (!fullName) {
+                status("Ho ten khong duoc de trong.", "error");
+                return;
+            }
+            try {
+                await fetchJson('/api/customer/accounts/' + CUSTOMER_ID + '/', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ full_name: fullName }),
+                });
+                status('Da cap nhat thong tin ca nhan.', 'ok');
+            } catch (error) {
+                status(error.message, 'error');
+            }
+        }
 
-            root.innerHTML = items.map((p) => {
-                const type = p.item_type || "mobile";
-                const icon = type === "laptop" ? "💻" : "📱";
-                const reason = p.reason || "ranked_by_user_activity";
-
-                return (
-                    '<article class="card">' +
-                        '<div class="thumb"><span class="chip">' + type.toUpperCase() + '</span>' + icon + '</div>' +
-                        '<div class="body">' +
-                            '<div class="name">' + escapeHtml(p.name || "Unknown") + '</div>' +
-                            '<div class="meta">' + escapeHtml((p.brand || "Unknown") + ' · score: ' + Number(p.score || 0).toFixed(3)) + '</div>' +
-                            '<div class="row">' +
-                                '<span class="price">' + money(p.price || 0) + '</span>' +
-                                '<span>Stock: <strong>' + Number(p.stock || 0) + '</strong></span>' +
-                            '</div>' +
-                            '<div class="meta">' + escapeHtml(reason) + '</div>' +
-                            '<div class="row">' +
-                                '<button class="button soft" onclick="showDetail(\'' + type + '\',' + Number(p.item_id || 0) + ')">Detail</button>' +
-                                '<button class="button brand" onclick="addToCart(\'' + type + '\',' + Number(p.item_id || 0) + ')">Add Cart</button>' +
-                            '</div>' +
-                        '</div>' +
-                    '</article>'
-                );
+        function renderAiSuggestions(rows) {
+            const box = document.getElementById("aiBox");
+            const list = document.getElementById("aiList");
+            if (!Array.isArray(rows) || !rows.length) {
+                box.style.display = "none";
+                list.innerHTML = "";
+                return;
+            }
+            box.style.display = "block";
+            list.innerHTML = rows.map((r) => {
+                const label = (r.name || "Unknown") + " - " + money(r.price || 0);
+                return "<li>" + escapeHtml(label) + "</li>";
             }).join("");
         }
 
-        async function loadRecommendations() {
+        async function loadAiSuggestions() {
             try {
-                const payload = await fetchJson("/api/ai/recommendations/" + CUSTOMER_ID + "/?limit=8");
-                state.recommendations = Array.isArray(payload.data) ? payload.data : [];
-                renderRecommendations();
+                if (!CUSTOMER_ID) {
+                    throw new Error("Khong tim thay customer id de lay goi y.");
+                }
+                const payload = await fetchJson('/api/ai/recommendations/' + CUSTOMER_ID + '/?limit=6');
+                const rows = Array.isArray(payload)
+                    ? payload
+                    : (Array.isArray(payload.data) ? payload.data : []);
+                markAiPicks(rows);
+                renderAiSuggestions(rows);
+                renderProducts();
+                status('Da tai ' + rows.length + ' goi y tu AI.', 'ok');
             } catch (error) {
-                state.recommendations = [];
-                renderRecommendations();
-            }
-        }
-
-        function appendChatMessage(role, text, sources) {
-            const root = document.getElementById("chat-window");
-            const msg = document.createElement("div");
-            msg.className = "chat-msg " + (role === "user" ? "user" : "bot");
-            msg.textContent = text;
-
-            if (role === "bot" && Array.isArray(sources) && sources.length) {
-                const meta = document.createElement("div");
-                meta.className = "chat-meta";
-
-                sources.slice(0, 4).forEach((src) => {
-                    const chip = document.createElement("span");
-                    chip.className = "chat-source";
-                    const type = String(src.item_type || "item").toUpperCase();
-                    const name = String(src.name || "Unknown");
-                    chip.textContent = type + ": " + name;
-                    meta.appendChild(chip);
-                });
-
-                msg.appendChild(meta);
-            }
-
-            root.appendChild(msg);
-            root.scrollTop = root.scrollHeight;
-        }
-
-        function toggleChatbot() {
-            const panel = document.getElementById("chat-panel");
-            const fab = document.getElementById("chat-fab");
-            state.chatOpened = !state.chatOpened;
-
-            if (state.chatOpened) {
-                panel.classList.add("open");
-                panel.setAttribute("aria-hidden", "false");
-                fab.textContent = "✕";
-                document.getElementById("chat-input").focus();
-            } else {
-                panel.classList.remove("open");
-                panel.setAttribute("aria-hidden", "true");
-                fab.textContent = "🤖";
-            }
-        }
-
-        function clearChat() {
-            const root = document.getElementById("chat-window");
-            root.innerHTML = "";
-            appendChatMessage("bot", "Xin chao, toi la Nova Assistant. Ban can tu van mua laptop hay dien thoai?");
-        }
-
-        async function sendChat() {
-            const input = document.getElementById("chat-input");
-            const sendBtn = document.getElementById("chat-send-btn");
-            const question = (input.value || "").trim();
-
-            if (!question) {
-                return;
-            }
-
-            appendChatMessage("user", question);
-            input.value = "";
-
-            sendBtn.disabled = true;
-            sendBtn.textContent = "Sending...";
-
-            try {
-                const payload = await fetchJson("/api/ai/chat/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question: question, top_k: 8 }),
-                });
-
-                const answer = payload.answer || "Nova chua co cau tra loi phu hop.";
-                appendChatMessage("bot", answer, payload.sources || []);
-            } catch (error) {
-                appendChatMessage(
-                    "bot",
-                    "Xin loi, he thong AI dang tam thoi khong phan hoi. Ban vui long thu lai sau. Chi tiet: " + error.message
-                );
-            } finally {
-                sendBtn.disabled = false;
-                sendBtn.textContent = "Send";
+                const fallback = state.products.slice(0, 6).map((p) => ({
+                    id: p.id,
+                    item_id: p.id,
+                    name: p.name,
+                    price: p.price,
+                }));
+                markAiPicks(fallback);
+                renderAiSuggestions(fallback);
+                renderProducts();
+                status('AI tam thoi khong kha dung, da hien thi goi y local.', 'warn');
             }
         }
 
         function escapeHtml(v) {
             return String(v)
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#39;");
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
         }
 
-        async function showDetail(type, id) {
-            try {
-                const endpoint = type === "laptop" ? ("/api/laptops/" + id + "/") : ("/api/mobiles/" + id + "/");
-                const data = await fetchJson(endpoint);
-                state.selectedProduct = { type, id, data };
+        window.setCategory = setCategory;
+        window.openProductDetail = openProductDetail;
+        window.loadAiSuggestions = loadAiSuggestions;
+        window.openProfileEditor = openProfileEditor;
 
-                try {
-                    await fetchJson("/api/customer/activities/", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            customer_id: CUSTOMER_ID,
-                            action: "VIEW_PRODUCT",
-                            item_type: type,
-                            item_id: id,
-                            metadata: { source: "customer_dashboard_modal" },
-                        }),
-                    });
-                } catch (error) {
-                    // Do not block product detail rendering if activity logging fails.
-                }
-
-                const html = [
-                    '<p><strong>Name:</strong> ' + escapeHtml(data.name || "N/A") + '</p>',
-                    '<p><strong>Brand:</strong> ' + escapeHtml(data.brand || "N/A") + '</p>',
-                    '<p><strong>Price:</strong> ' + money(data.price) + '</p>',
-                    '<p><strong>Stock:</strong> ' + Number(data.stock || 0) + '</p>',
-                    '<p><strong>Description:</strong> ' + escapeHtml(data.description || "No description") + '</p>'
-                ];
-
-                if (type === "laptop") {
-                    html.push('<p><strong>Spec:</strong> ' + escapeHtml((data.cpu || "CPU?") + ', ' + (data.ram_gb || "?") + 'GB RAM, ' + (data.storage_gb || "?") + 'GB SSD') + '</p>');
-                } else {
-                    html.push('<p><strong>Spec:</strong> ' + escapeHtml((data.camera_specs || "Camera?") + ', ' + (data.screen_size || "?") + ' inch, ' + (data.battery_mah || "?") + 'mAh') + '</p>');
-                }
-
-                document.getElementById("product-modal-title").textContent = "Product Detail #" + id;
-                document.getElementById("product-modal-content").innerHTML = html.join("");
-                await renderRating(type, id);
-                document.getElementById("product-modal-bg").style.display = "flex";
-            } catch (error) {
-                status(error.message, "error");
+        document.getElementById("searchInput").addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                applySearch();
             }
-        }
-
-        async function fetchRating(type, id) {
-            return fetchJson(
-                "/api/customer/ratings/?item_type=" + encodeURIComponent(type)
-                + "&item_id=" + encodeURIComponent(id)
-                + "&customer_id=" + encodeURIComponent(CUSTOMER_ID)
-            );
-        }
-
-        async function setRating(type, id, score) {
-            try {
-                await fetchJson("/api/customer/ratings/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        customer_id: CUSTOMER_ID,
-                        item_type: type,
-                        item_id: id,
-                        score: score,
-                        review: "",
-                    }),
-                });
-                await renderRating(type, id);
-                status("Rating saved to database.", "ok");
-            } catch (error) {
-                status(error.message, "error");
-            }
-        }
-
-        async function renderRating(type, id) {
-            const container = document.getElementById("rating-stars");
-            const summary = document.getElementById("rating-summary");
-            let data;
-
-            try {
-                data = await fetchRating(type, id);
-            } catch (error) {
-                container.innerHTML = "";
-                summary.textContent = "Cannot load rating data.";
-                return;
-            }
-
-            const myScore = Number(data.my_score || 0);
-            const avg = Number(data.average_score || 0);
-            const votes = Number(data.votes || 0);
-
-            container.innerHTML = "";
-            for (let i = 1; i <= 5; i += 1) {
-                const btn = document.createElement("button");
-                btn.className = "star" + (i <= myScore ? " active" : "");
-                btn.textContent = "★";
-                btn.type = "button";
-                btn.onclick = () => { setRating(type, id, i); };
-                container.appendChild(btn);
-            }
-
-            summary.textContent = "Average: " + avg.toFixed(1) + " / 5 · Votes: " + votes + " · Your score: " + myScore;
-        }
-
-        function closeProductModal() {
-            document.getElementById("product-modal-bg").style.display = "none";
-        }
-
-        async function addToCart(type, id) {
-            try {
-                await fetchJson("/api/customer/cart-items/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        customer_id: CUSTOMER_ID,
-                        item_type: type,
-                        product_id: id,
-                        quantity: 1,
-                    }),
-                });
-                status("Added to cart.", "ok");
-            } catch (error) {
-                status(error.message, "error");
-            }
-        }
-
-        window.addEventListener("load", () => {
-            refreshProducts();
-            loadRecommendations();
-            clearChat();
         });
+
+        document.addEventListener("click", function (event) {
+            const wrap = document.getElementById("userMenuWrap");
+            if (!wrap || !wrap.contains(event.target)) {
+                closeUserMenu();
+            }
+        });
+
+        window.addEventListener('load', loadInitialData);
     </script>
-</body>
-</html>
+{% endblock %}

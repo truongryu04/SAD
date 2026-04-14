@@ -1,226 +1,96 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NovaShop Gateway Login</title>
-    <style>
-        @import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap");
+{% extends "app/base.html" %}
 
-        :root {
-            --bg-1: #f7f2e7;
-            --bg-2: #e8f5f2;
-            --panel: #fffdf8;
-            --line: #d7d8cf;
-            --ink: #1f2430;
-            --muted: #667085;
-            --brand: #0f766e;
-            --brand-2: #f59e0b;
-            --danger-bg: #fee4e2;
-            --danger-fg: #b42318;
-            --ok-bg: #dcfce7;
-            --ok-fg: #166534;
-        }
+{% block title %}Đăng nhập · Ecom Gateway{% endblock %}
 
-        * { box-sizing: border-box; }
+{% block head %}
+  <style>
+    /* Login page: stack Z panels vertically (one column). */
+    .z-grid {
+      grid-template-columns: 1fr;
+    }
 
-        body {
-            margin: 0;
-            min-height: 100vh;
-            font-family: "Space Grotesk", sans-serif;
-            color: var(--ink);
-            background:
-                radial-gradient(circle at 12% 10%, #fde68a 0, transparent 27%),
-                radial-gradient(circle at 88% 90%, #86efac 0, transparent 35%),
-                linear-gradient(135deg, var(--bg-1), var(--bg-2));
-            display: grid;
-            place-items: center;
-            padding: 20px;
-        }
+    /* Login page: stack inputs vertically and full-width. */
+    .login-form {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
 
-        .shell {
-            width: min(980px, 96vw);
-            border: 1px solid var(--line);
-            border-radius: 28px;
-            background: rgba(255, 255, 255, 0.88);
-            backdrop-filter: blur(8px);
-            box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
-            display: grid;
-            grid-template-columns: 1.15fr 1fr;
-            overflow: hidden;
-        }
+    .login-form label {
+      display: block;
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--muted);
+    }
 
-        .intro {
-            padding: 40px;
-            background: linear-gradient(155deg, #14532d 0%, #0f766e 55%, #1f2937 100%);
-            color: #f9fafb;
-            display: grid;
-            align-content: center;
-            gap: 14px;
-        }
+    .login-form .input,
+    .login-form .select,
+    .login-form .btn {
+      width: 100%;
+    }
+  </style>
+{% endblock %}
 
-        .badge {
-            width: fit-content;
-            padding: 8px 14px;
-            border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.45);
-            font-size: 12px;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-            font-weight: 700;
-        }
+{% block header_sub %}Đăng nhập đa vai trò{% endblock %}
 
-        .intro h1 {
-            margin: 0;
-            font-size: clamp(28px, 3.8vw, 42px);
-            line-height: 1.08;
-        }
+{% block nav %}
+  <a class="nav-link" href="/ui/register/">Đăng ký</a>
+{% endblock %}
 
-        .intro p {
-            margin: 0;
-            color: rgba(249, 250, 251, 0.9);
-            line-height: 1.7;
-        }
+{% block lead %}
+  <div class="kv">
+    <span class="badge brand">Cổng API Ecom Shop</span>
+    <h1 class="h1">Đăng nhập theo vai trò</h1>
+    <p class="sub">
+      Đi theo đường đọc dạng “Z”: bắt đầu từ thương hiệu, chọn vai trò, rồi xác thực.
+      Sau đăng nhập, bạn sẽ được chuyển đến dashboard tương ứng.
+    </p>
+    <div class="cta">
+      <a class="button soft" href="/ui/register/">Tạo tài khoản</a>
+    </div>
+  </div>
+{% endblock %}
 
-        .panel {
-            padding: 34px 30px;
-            background: var(--panel);
-        }
+{% block primary %}
+  <h2 class="h2">Đăng nhập</h2>
+  <p class="sub">Chọn vai trò rồi nhập thông tin tài khoản.</p>
 
-        .panel h2 {
-            margin: 0;
-            font-size: 28px;
-        }
+  <form class="login-form" method="post" action="/ui/login/">
+    {% csrf_token %}
 
-        .sub {
-            margin: 8px 0 20px;
-            color: var(--muted);
-            font-size: 14px;
-        }
+    <label for="role">Vai trò</label>
+    <select id="role" name="role" class="select">
+      <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>Khách hàng</option>
+      <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>Nhân viên</option>
+    </select>
 
-        label {
-            display: block;
-            margin: 12px 0 6px;
-            font-size: 13px;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-        }
+    <label for="username">Tên đăng nhập</label>
+    <input id="username" name="username" class="input" type="text" required>
 
-        .input,
-        .select,
-        .btn {
-            width: 100%;
-            border-radius: 12px;
-            border: 1px solid var(--line);
-            padding: 12px;
-            font: inherit;
-        }
+    <label for="password">Mật khẩu</label>
+    <input id="password" name="password" class="input" type="password" required>
 
-        .input:focus,
-        .select:focus {
-            outline: none;
-            border-color: #0f766e;
-            box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.14);
-        }
+    <button class="btn" type="submit">Đăng nhập</button>
+  </form>
 
-        .btn {
-            margin-top: 18px;
-            border: 0;
-            background: linear-gradient(90deg, var(--brand), #0ea5a4);
-            color: #fff;
-            font-weight: 700;
-            cursor: pointer;
-        }
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% endif %}
 
-        .btn:hover {
-            filter: brightness(1.05);
-        }
+  {% if info %}
+    <div class="info">{{ info }}</div>
+  {% endif %}
 
-        .switch {
-            margin-top: 14px;
-            text-align: center;
-            color: var(--muted);
-            font-size: 14px;
-        }
+  <p class="sub" style="margin-top:14px;">
+    Chưa có tài khoản? <a href="/ui/register/" style="font-weight:800; text-decoration:none; color: var(--brand);">Tạo tài khoản</a>
+  </p>
+{% endblock %}
 
-        .switch a {
-            color: var(--brand);
-            text-decoration: none;
-            font-weight: 700;
-        }
-
-        .error,
-        .info {
-            margin-top: 14px;
-            border-radius: 12px;
-            padding: 10px 12px;
-            font-size: 13px;
-        }
-
-        .error {
-            background: var(--danger-bg);
-            color: var(--danger-fg);
-            border: 1px solid #fecdca;
-        }
-
-        .info {
-            background: var(--ok-bg);
-            color: var(--ok-fg);
-            border: 1px solid #bbf7d0;
-        }
-
-        @media (max-width: 900px) {
-            .shell { grid-template-columns: 1fr; }
-            .intro { padding: 28px; }
-            .panel { padding: 24px; }
-        }
-    </style>
-</head>
-<body>
-    <main class="shell">
-        <section class="intro">
-            <span class="badge">NovaShop API Gateway</span>
-            <h1>Multi-role Login for Customer and Staff</h1>
-            <p>
-                Sign in to continue shopping, manage carts, and maintain your product catalog.
-                One gateway, separate dashboards by role.
-            </p>
-        </section>
-
-        <section class="panel">
-            <h2>Sign In</h2>
-            <p class="sub">Choose role then authenticate.</p>
-
-            <form method="post" action="/ui/login/">
-                {% csrf_token %}
-                <label for="role">Role</label>
-                <select id="role" name="role" class="select">
-                    <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>CUSTOMER</option>
-                    <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>STAFF</option>
-                </select>
-
-                <label for="username">Username</label>
-                <input id="username" name="username" class="input" type="text" required>
-
-                <label for="password">Password</label>
-                <input id="password" name="password" class="input" type="password" required>
-
-                <button class="btn" type="submit">Login</button>
-            </form>
-
-            {% if error %}
-            <div class="error">{{ error }}</div>
-            {% endif %}
-
-            {% if info %}
-            <div class="info">{{ info }}</div>
-            {% endif %}
-
-            <div class="switch">
-                No account yet? <a href="/ui/register/">Create one</a>
-            </div>
-        </section>
-    </main>
-</body>
-</html>
+{% block secondary %}
+  <section class="panel" style="padding:16px;">
+    <h3 style="margin:0; font-size:16px;">Gợi ý</h3>
+    <p class="sub" style="margin:6px 0 0;">
+      Nếu chưa có tài khoản, đăng ký trước rồi quay lại đăng nhập.
+    </p>
+  </section>
+{% endblock %}

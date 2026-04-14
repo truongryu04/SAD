@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý đơn hàng</title>
+    <link rel="stylesheet" href="{% static 'app/staff_common.css' %}">
+</head>
+<body>
+    <div class="dashboard-shell">
+        <aside id="sidebar" class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">EC</div>
+                <div class="brand-text">
+                    <h1>EMCommerce</h1>
+                    <p>Staff Console</p>
+                </div>
+            </div>
+
+            <p class="menu-label">Điều hướng</p>
+            <ul class="nav-menu">
+                <li><a class="nav-link" href="/ui/staff/">Dashboard</a></li>
+                <li><a class="nav-link" href="/ui/staff/products/">Quản lý sản phẩm</a></li>
+                <li><a class="nav-link" href="/ui/staff/categories/">Quản lý danh mục</a></li>
+                <li><a class="nav-link active" href="/ui/staff/orders/">Quản lý đơn hàng</a></li>
+                <li><a class="nav-link" href="/ui/staff/customers/">Quản lý khách hàng</a></li>
+                <li><a class="nav-link" href="#">Quản lý nhân viên / admin</a></li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="left-tools">
+                    <button id="menuToggle" class="menu-toggle" type="button" aria-label="Mở menu">☰</button>
+                    <div class="search-box">
+                        <span>🔎</span>
+                        <input id="searchInput" type="text" placeholder="Tìm theo mã đơn, khách hàng hoặc trạng thái...">
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" type="button" aria-label="Thông báo">🔔<span class="badge">5</span></button>
+                    <button class="icon-btn" type="button" aria-label="Tin nhắn">💬<span class="badge" style="background: var(--primary-dark);">2</span></button>
+
+                    <div id="profileTrigger" class="profile-wrap" role="button" tabindex="0" aria-label="Mở menu profile">
+                        <div class="avatar">{{ full_name|default:username|slice:":2"|upper }}</div>
+                        <div class="profile-meta">
+                            <strong>{{ full_name|default:username }}</strong>
+                            <span>Mã NV: {{ user_id }}</span>
+                        </div>
+                    </div>
+
+                    <div id="profileMenu" class="profile-menu" aria-label="Menu profile">
+                        <button type="button">Profile</button>
+                        <button type="button">Cài đặt</button>
+                        <a href="/ui/logout/" style="color: var(--danger);">Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <section class="dashboard-body">
+                <div class="hero">
+                    <div>
+                        <h2>Quản lý đơn hàng</h2>
+                        <p>Theo dõi trạng thái đơn hàng, thanh toán, tổng tiền và số item theo thời gian thực.</p>
+                    </div>
+                    <div class="chip">Đồng bộ tự động</div>
+                </div>
+
+                <section class="panel">
+                    <div class="controls">
+                        <input id="statusFilter" class="field" type="text" placeholder="Lọc trạng thái: pending, paid, shipping...">
+                        <select id="pageSizeSelect" class="select">
+                            <option value="8">8 dòng / trang</option>
+                            <option value="12">12 dòng / trang</option>
+                            <option value="20">20 dòng / trang</option>
+                        </select>
+                        <button id="reloadBtn" class="btn" type="button">Tải lại danh sách</button>
+                    </div>
+                    <div id="statusBox" class="status-box"></div>
+                </section>
+
+                <section class="panel">
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Mã đơn</th>
+                                    <th>Khách hàng</th>
+                                    <th>Giỏ hàng</th>
+                                    <th>Thanh toán</th>
+                                    <th>Trạng thái</th>
+                                    <th>Tổng tiền</th>
+                                    <th>Số item</th>
+                                </tr>
+                            </thead>
+                            <tbody id="orderBody"></tbody>
+                        </table>
+                    </div>
+                    <div class="pagination">
+                        <div id="pageInfo">Hiển thị 0 đơn hàng</div>
+                        <div class="pager-btns" id="pagerButtons"></div>
+                    </div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+    <script src="{% static 'app/staff_common.js' %}"></script>
+    <script>
+        const state = {
+            rows: [],
+            filtered: [],
+            page: 1,
+            pageSize: 8,
+        };
+
+        initStaffCommonUI();
+
+        const searchInput = document.getElementById("searchInput");
+        const statusFilter = document.getElementById("statusFilter");
+        const pageSizeSelect = document.getElementById("pageSizeSelect");
+        const reloadBtn = document.getElementById("reloadBtn");
+        const statusBox = document.getElementById("statusBox");
+        const orderBody = document.getElementById("orderBody");
+        const pageInfo = document.getElementById("pageInfo");
+        const pagerButtons = document.getElementById("pagerButtons");
+
+        function showStatus(message, type) {
+            statusBox.className = "status-box " + type;
+            statusBox.textContent = message;
+        }
+
+        function money(value) {
+            const num = Number(value || 0);
+            if (!Number.isFinite(num)) {
+                return "N/A";
+            }
+            return num.toLocaleString("vi-VN") + " VND";
+        }
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, options);
+            const text = await response.text();
+            let data = {};
+            try {
+                data = JSON.parse(text || "{}");
+            } catch (error) {
+                data = { message: text || "Phản hồi không hợp lệ." };
+            }
+
+            if (!response.ok) {
+                throw new Error(data.error || data.message || "Yêu cầu thất bại.");
+            }
+
+            return data;
+        }
+
+        async function loadOrders() {
+            try {
+                const payload = await fetchJson("/api/orders/");
+                state.rows = Array.isArray(payload && payload.data) ? payload.data : [];
+                applyFilters();
+                showStatus("Đã tải danh sách đơn hàng.", "ok");
+            } catch (error) {
+                showStatus(error.message, "error");
+            }
+        }
+
+        function applyFilters() {
+            const keyword = searchInput.value.trim().toLowerCase();
+            const statusKeyword = statusFilter.value.trim().toLowerCase();
+
+            state.filtered = state.rows.filter((row) => {
+                const idText = String(row.id || "");
+                const customerText = String(row.customer_id || "");
+                const orderStatus = String(row.order_status || "").toLowerCase();
+
+                const matchKeyword = !keyword
+                    || idText.includes(keyword)
+                    || customerText.includes(keyword)
+                    || orderStatus.includes(keyword);
+                const matchStatus = !statusKeyword || orderStatus.includes(statusKeyword);
+                return matchKeyword && matchStatus;
+            });
+
+            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+            if (state.page > pageCount) {
+                state.page = pageCount;
+            }
+
+            renderOrders();
+            renderPagination();
+        }
+
+        function renderOrders() {
+            if (!state.filtered.length) {
+                orderBody.innerHTML = "<tr><td colspan='7'>Chưa có order phù hợp.</td></tr>";
+                pageInfo.textContent = "Hiển thị 0 đơn hàng";
+                return;
+            }
+
+            const start = (state.page - 1) * state.pageSize;
+            const end = start + state.pageSize;
+            const rows = state.filtered.slice(start, end);
+
+            orderBody.innerHTML = rows.map((row) => (
+                "<tr>"
+                + "<td>#" + Number(row.id || 0) + "</td>"
+                + "<td>" + Number(row.customer_id || 0) + "</td>"
+                + "<td>" + Number(row.cart_id || 0) + "</td>"
+                + "<td>" + String(row.payment_method || "N/A") + "</td>"
+                + "<td><span class='tag'>" + String(row.order_status || "N/A") + "</span></td>"
+                + "<td>" + money(row.total_amount || 0) + "</td>"
+                + "<td>" + (Array.isArray(row.items) ? row.items.length : 0) + "</td>"
+                + "</tr>"
+            )).join("");
+
+            pageInfo.textContent = "Hiển thị " + (start + 1) + " - " + Math.min(end, state.filtered.length)
+                + " / " + state.filtered.length + " đơn hàng";
+        }
+
+        function renderPagination() {
+            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+            let html = "";
+            html += "<button class='btn' type='button' " + (state.page === 1 ? "disabled" : "") + " onclick='changePage(" + (state.page - 1) + ")'>Trước</button>";
+
+            for (let page = 1; page <= pageCount; page += 1) {
+                const activeClass = page === state.page ? " active" : "";
+                html += "<button class='page-num" + activeClass + "' type='button' onclick='changePage(" + page + ")'>" + page + "</button>";
+            }
+
+            html += "<button class='btn' type='button' " + (state.page === pageCount ? "disabled" : "") + " onclick='changePage(" + (state.page + 1) + ")'>Sau</button>";
+            pagerButtons.innerHTML = html;
+        }
+
+        function changePage(page) {
+            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+            if (page < 1 || page > pageCount) {
+                return;
+            }
+            state.page = page;
+            renderOrders();
+            renderPagination();
+        }
+
+        searchInput.addEventListener("input", function () {
+            state.page = 1;
+            applyFilters();
+        });
+
+        statusFilter.addEventListener("input", function () {
+            state.page = 1;
+            applyFilters();
+        });
+
+        pageSizeSelect.addEventListener("change", function () {
+            state.pageSize = Number(pageSizeSelect.value || 8);
+            state.page = 1;
+            applyFilters();
+        });
+
+        reloadBtn.addEventListener("click", loadOrders);
+
+        window.changePage = changePage;
+
+        loadOrders();
+    </script>
+</body>
+</html>

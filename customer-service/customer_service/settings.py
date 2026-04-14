@@ -81,7 +81,7 @@ if DB_ENGINE == 'django.db.backends.mysql':
     DATABASES = {
         'default': {
             'ENGINE': DB_ENGINE,
-            'NAME': os.getenv('DB_MYSQL_NAME', 'ktra1_customer_db'),
+            'NAME': os.getenv('DB_MYSQL_NAME', 'customer_service_db'),
             'USER': os.getenv('DB_MYSQL_USER', 'root'),
             'PASSWORD': os.getenv('DB_MYSQL_PASSWORD', '123456'),
             'HOST': os.getenv('DB_MYSQL_HOST', 'localhost'),
@@ -95,7 +95,7 @@ elif DB_ENGINE == 'django.db.backends.postgresql':
     DATABASES = {
         'default': {
             'ENGINE': DB_ENGINE,
-            'NAME': os.getenv('DB_POSTGRES_NAME', 'ktra1_customer_db'),
+            'NAME': os.getenv('DB_POSTGRES_NAME', 'customer_service_db'),
             'USER': os.getenv('DB_POSTGRES_USER', 'postgres'),
             'PASSWORD': os.getenv('DB_POSTGRES_PASSWORD', '123456'),
             'HOST': os.getenv('DB_POSTGRES_HOST', 'localhost'),
@@ -150,3 +150,5 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+KB_SERVICE_URL = os.getenv('KB_SERVICE_URL', 'http://kb-service:8010')

@@ -123,7 +123,13 @@ CUSTOMER_SERVICE_URL = os.getenv('CUSTOMER_SERVICE_URL', 'http://127.0.0.1:8001'
 STAFF_SERVICE_URL = os.getenv('STAFF_SERVICE_URL', 'http://127.0.0.1:8002')
 LAPTOP_SERVICE_URL = os.getenv('LAPTOP_SERVICE_URL', 'http://127.0.0.1:8003')
 MOBILE_SERVICE_URL = os.getenv('MOBILE_SERVICE_URL', 'http://127.0.0.1:8004')
+PRODUCT_SERVICE_URL = os.getenv('PRODUCT_SERVICE_URL', 'http://127.0.0.1:8003')
 AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://127.0.0.1:8005')
+ORDER_SERVICE_URL = os.getenv('ORDER_SERVICE_URL', 'http://127.0.0.1:8006')
+CATEGORY_SERVICE_URL = os.getenv('CATEGORY_SERVICE_URL', 'http://127.0.0.1:8004')
+ATTRIBUTE_SERVICE_URL = os.getenv('ATTRIBUTE_SERVICE_URL', 'http://127.0.0.1:8007')
+KB_SERVICE_URL = os.getenv('KB_SERVICE_URL', 'http://127.0.0.1:8010')
+VIEWED_EVENT_WINDOW_SECONDS = int(os.getenv('VIEWED_EVENT_WINDOW_SECONDS', '300'))
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

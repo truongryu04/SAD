@@ -1,9 +1,27 @@
+
 services:
+  neo4j:
+    image: neo4j:5
+    container_name: neo4j
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt protocol
+    environment:
+      NEO4J_AUTH: "neo4j/12345678"
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "12345678", "MATCH (n) RETURN count(n)"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
   mysql:
     image: mysql:8.4
     environment:
       MYSQL_ROOT_PASSWORD: "123456"
-      MYSQL_DATABASE: "ktra1_customer_db"
+      MYSQL_DATABASE: "customer_service_db"
+    ports:
+      - "3308:3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d
@@ -18,12 +36,14 @@ services:
     environment:
       POSTGRES_USER: "postgres"
       POSTGRES_PASSWORD: "123456"
-      POSTGRES_DB: "ktra1_laptop_db"
+      POSTGRES_DB: "postgres"
+    ports:
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d ktra1_laptop_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -38,13 +58,35 @@ services:
     environment:
       ALLOWED_HOSTS: "*"
       DB_ENGINE: django.db.backends.mysql
-      DB_MYSQL_NAME: ktra1_customer_db
+      DB_MYSQL_NAME: customer_service_db
       DB_MYSQL_USER: root
       DB_MYSQL_PASSWORD: "123456"
       DB_MYSQL_HOST: mysql
       DB_MYSQL_PORT: "3306"
+      KB_SERVICE_URL: http://kb-service:8010
     ports:
       - "8001:8001"
+
+  order-service:
+    build:
+      context: ./order-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+      customer-service:
+        condition: service_started
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.mysql
+      DB_MYSQL_NAME: order_service_db
+      DB_MYSQL_USER: root
+      DB_MYSQL_PASSWORD: "123456"
+      DB_MYSQL_HOST: mysql
+      DB_MYSQL_PORT: "3306"
+      CUSTOMER_SERVICE_URL: http://customer-service:8001
+    ports:
+      - "8006:8006"
 
   staff-service:
     build:
@@ -56,35 +98,61 @@ services:
     environment:
       ALLOWED_HOSTS: "*"
       DB_ENGINE: django.db.backends.mysql
-      DB_MYSQL_NAME: ktra1_staff_db
+      DB_MYSQL_NAME: staff_service_db
       DB_MYSQL_USER: root
       DB_MYSQL_PASSWORD: "123456"
       DB_MYSQL_HOST: mysql
       DB_MYSQL_PORT: "3306"
+      PRODUCT_SERVICE_URL: http://product-service:8003
     ports:
       - "8002:8002"
 
-  laptop-service:
+
+  product-service:
     build:
-      context: ./laptop-service
+      context: ./product-service
       dockerfile: Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
+      attribute-service:
+        condition: service_started
     environment:
       ALLOWED_HOSTS: "*"
       DB_ENGINE: django.db.backends.postgresql
-      DB_POSTGRES_NAME: ktra1_laptop_db
-      DB_POSTGRES_USER: postgres
-      DB_POSTGRES_PASSWORD: "123456"
+      POSTGRES_DB: product_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "123456"
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
+      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
     ports:
       - "8003:8003"
 
-  mobile-service:
+  category-service:
     build:
-      context: ./mobile-service
+      context: ./category-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      attribute-service:
+        condition: service_started
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.postgresql
+      POSTGRES_DB: category_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
+    ports:
+      - "8004:8004"
+
+  attribute-service:
+    build:
+      context: ./attribute-service
       dockerfile: Dockerfile
     depends_on:
       postgres:
@@ -92,13 +160,67 @@ services:
     environment:
       ALLOWED_HOSTS: "*"
       DB_ENGINE: django.db.backends.postgresql
-      DB_POSTGRES_NAME: ktra1_mobile_db
-      DB_POSTGRES_USER: postgres
-      DB_POSTGRES_PASSWORD: "123456"
+      POSTGRES_DB: attribute_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "123456"
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
     ports:
-      - "8004:8004"
+      - "8007:8007"
+
+  inventory-service:
+    build:
+      context: ./inventory-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      DB_ENGINE: django.db.backends.postgresql
+      POSTGRES_DB: inventory_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+    ports:
+      - "8008:8008"
+
+  kb-service:
+    build:
+      context: ./kb-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+      category-service:
+        condition: service_started
+      attribute-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      POSTGRES_DB: kb_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      PRODUCT_SERVICE_URL: http://product-service:8003
+      CATEGORY_SERVICE_URL: http://category-service:8004
+      INVENTORY_SERVICE_URL: http://inventory-service:8008
+      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      ORDER_SERVICE_URL: http://order-service:8006
+      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      NEO4J_PASSWORD: "12345678"
+    ports:
+      - "8010:8010"
 
   ai-service:
     build:
@@ -107,22 +229,26 @@ services:
     depends_on:
       - postgres
       - customer-service
-      - laptop-service
-      - mobile-service
+      - product-service
+      - category-service
+      - attribute-service
+      - inventory-service
     environment:
       ALLOWED_HOSTS: "*"
       AI_SERVICE_PORT: "8005"
       DB_ENGINE: django.db.backends.postgresql
-      DB_POSTGRES_NAME: ktra1_ai_db
+      DB_POSTGRES_NAME: ai_service_db
       DB_POSTGRES_USER: postgres
       DB_POSTGRES_PASSWORD: "123456"
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
       CUSTOMER_SERVICE_URL: http://customer-service:8001
+      PRODUCT_SERVICE_URL: http://product-service:8003
       LAPTOP_SERVICE_URL: http://laptop-service:8003
       MOBILE_SERVICE_URL: http://mobile-service:8004
+      KB_SERVICE_URL: http://kb-service:8010
       OLLAMA_BASE_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: llama3.1
+      OLLAMA_MODEL: gemma3:1b
     ports:
       - "8005:8005"
 
@@ -133,20 +259,77 @@ services:
     depends_on:
       - customer-service
       - staff-service
-      - laptop-service
-      - mobile-service
       - ai-service
+      - order-service
+      - kb-service
     environment:
       ALLOWED_HOSTS: "*"
       API_GATEWAY_PORT: "8000"
       CUSTOMER_SERVICE_URL: http://customer-service:8001
       STAFF_SERVICE_URL: http://staff-service:8002
-      LAPTOP_SERVICE_URL: http://laptop-service:8003
-      MOBILE_SERVICE_URL: http://mobile-service:8004
+      PRODUCT_SERVICE_URL: http://product-service:8003
+      CATEGORY_SERVICE_URL: http://category-service:8004
+      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
       AI_SERVICE_URL: http://ai-service:8005
+      ORDER_SERVICE_URL: http://order-service:8006
+      KB_SERVICE_URL: http://kb-service:8010
+      VIEWED_EVENT_WINDOW_SECONDS: "300"
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      OLLAMA_MODEL: gemma3:1b
     ports:
       - "8000:8000"
+
+  mysql-seeder:
+    image: mysql:8.4
+    profiles: ["seed"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+      customer-service:
+        condition: service_started
+      staff-service:
+        condition: service_started
+      order-service:
+        condition: service_started
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_ROOT_PASSWORD: "123456"
+    volumes:
+      - ./mysql-init.sql:/seeds:ro
+      - ./docker/mysql/seed/run-seed.sh:/run-seed.sh:ro
+    command: ["sh", "/run-seed.sh"]
+    restart: "no"
+
+  postgres-seeder:
+    image: pgvector/pgvector:pg16
+    profiles: ["seed"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      category-service:
+        condition: service_started
+      attribute-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
+      product-service:
+        condition: service_started
+      ai-service:
+        condition: service_started
+    environment:
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: "123456"
+    volumes:
+      - ./postgres-init.sql:/seeds:ro
+      - ./docker/postgres/seed/run-seed.sh:/run-seed.sh:ro
+    command: ["sh", "/run-seed.sh"]
+    restart: "no"
 
 volumes:
   mysql_data:
   postgres_data:
+  neo4j_data:

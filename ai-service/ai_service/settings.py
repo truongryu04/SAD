@@ -90,7 +90,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AI_SERVICE_PORT = int(os.getenv('AI_SERVICE_PORT', '8005'))
 CUSTOMER_SERVICE_URL = os.getenv('CUSTOMER_SERVICE_URL', 'http://127.0.0.1:8001')
-LAPTOP_SERVICE_URL = os.getenv('LAPTOP_SERVICE_URL', 'http://127.0.0.1:8003')
-MOBILE_SERVICE_URL = os.getenv('MOBILE_SERVICE_URL', 'http://127.0.0.1:8004')
+PRODUCT_SERVICE_URL = os.getenv('PRODUCT_SERVICE_URL', 'http://127.0.0.1:8003')
+LAPTOP_SERVICE_URL = os.getenv('LAPTOP_SERVICE_URL', 'http://laptop-service:8003')
+MOBILE_SERVICE_URL = os.getenv('MOBILE_SERVICE_URL', 'http://mobile-service:8004')
+KB_SERVICE_URL = os.getenv('KB_SERVICE_URL', 'http://127.0.0.1:8010')
 OLLAMA_BASE_URL = os.getenv('OLLAMA_BASE_URL', 'http://127.0.0.1:11434')
-OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'llama3.1')
+OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'gemma3:1b')
+
+# Chat UI is embedded into customer pages via iframe from api-gateway.
+X_FRAME_OPTIONS = 'ALLOWALL'

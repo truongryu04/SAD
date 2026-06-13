@@ -1,515 +1,360 @@
 <!DOCTYPE html>
 {% load static %}
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý danh mục</title>
+    <title>Category Management</title>
     <link rel="stylesheet" href="{% static 'app/staff_common.css' %}">
 </head>
 <body>
-    <div class="dashboard-shell">
-        <aside id="sidebar" class="sidebar">
-            <div class="brand">
-                <div class="brand-mark">EC</div>
-                <div class="brand-text">
-                    <h1>EMCommerce</h1>
-                    <p>Staff Console</p>
+
+<div class="dashboard-shell">
+
+    <!-- SIDEBAR -->
+    {% include "app/partials/console_sidebar.html" with active="categories" role=role %}
+
+    <!-- MAIN -->
+    <main class="main-content">
+
+        <!-- HEADER -->
+        <header class="topbar">
+            <div class="left-tools">
+                <button id="menuToggle" class="menu-toggle">☰</button>
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input id="keywordInput" type="text" placeholder="Search by name or ID...">
                 </div>
             </div>
 
-            <p class="menu-label">Điều hướng</p>
-            <ul class="nav-menu">
-                <li><a class="nav-link" href="/ui/staff/">Dashboard</a></li>
-                <li><a class="nav-link" href="/ui/staff/products/">Quản lý sản phẩm</a></li>
-                <li><a class="nav-link active" href="/ui/staff/categories/">Quản lý danh mục</a></li>
-                <li><a class="nav-link" href="/ui/staff/orders/">Quản lý đơn hàng</a></li>
-                <li><a class="nav-link" href="/ui/staff/customers/">Quản lý khách hàng</a></li>
-                <li><a class="nav-link" href="#">Quản lý nhân viên / admin</a></li>
-            </ul>
-        </aside>
+            <div class="header-actions">
+                <button class="icon-btn">🔔<span class="badge">5</span></button>
 
-        <main class="main-content">
-            <header class="topbar">
-                <div class="left-tools">
-                    <button id="menuToggle" class="menu-toggle" type="button" aria-label="Mở menu">☰</button>
-                    <div class="search-box">
-                        <span>🔎</span>
-                        <input id="keywordInput" type="text" placeholder="Tìm theo tên danh mục hoặc ID...">
+                <div id="profileTrigger" class="profile-wrap">
+                    <div class="avatar">AD</div>
+                    <div class="profile-meta">
+                        <strong>Admin</strong>
+                        <span>System</span>
                     </div>
                 </div>
 
-                <div class="header-actions">
-                    <button class="icon-btn" type="button" aria-label="Thông báo">🔔<span class="badge">5</span></button>
-                    <button class="icon-btn" type="button" aria-label="Tin nhắn">💬<span class="badge" style="background: var(--primary-dark);">2</span></button>
-
-                    <div id="profileTrigger" class="profile-wrap" role="button" tabindex="0" aria-label="Mở menu profile">
-                        <div class="avatar">{{ full_name|default:username|slice:":2"|upper }}</div>
-                        <div class="profile-meta">
-                            <strong>{{ full_name|default:username }}</strong>
-                            <span>Mã NV: {{ user_id }}</span>
-                        </div>
-                    </div>
-
-                    <div id="profileMenu" class="profile-menu" aria-label="Menu profile">
-                        <button type="button">Profile</button>
-                        <button type="button">Cài đặt</button>
-                        <a href="/ui/logout/" style="color: var(--danger);">Logout</a>
-                    </div>
+                <div id="profileMenu" class="profile-menu">
+                    <a href="/ui/logout/" style="color: var(--danger);">Logout</a>
                 </div>
-            </header>
+            </div>
+        </header>
 
-            <section class="dashboard-body">
-                <div class="hero">
-                    <div>
-                        <h2>Danh sách danh mục</h2>
-                        <p>Quản lý category với các thao tác thêm, sửa, xóa, tìm kiếm và phân trang dữ liệu.</p>
-                    </div>
-                    <button class="btn btn-primary" type="button" id="addBtn">+ Thêm danh mục</button>
+        <!-- BODY -->
+        <section class="dashboard-body">
+
+            <!-- HERO -->
+            <div class="hero">
+                <div>
+                    <h2>Category List</h2>
+                    <p>Manage categories: create, update, delete.</p>
                 </div>
+                <button id="addBtn" class="btn btn-primary" type="button">+ Add Category</button>
+            </div>
 
-                <section class="panel">
-                    <div class="controls">
-                        <input id="searchInput" class="field" type="text" placeholder="Nhập tên danh mục hoặc ID...">
-                        <select id="statusFilter" class="select">
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="active">ACTIVE</option>
-                            <option value="inactive">INACTIVE</option>
-                        </select>
-                        <button id="reloadBtn" class="btn" type="button">Tải lại danh sách</button>
-                    </div>
-                    <div id="statusBox" class="status-box"></div>
-                </section>
-
-                <section class="panel">
-                    <div class="table-wrap">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Tên danh mục</th>
-                                    <th>Mô tả</th>
-                                    <th>Parent ID</th>
-                                    <th>Trạng thái</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="categoryTableBody"></tbody>
-                        </table>
-                    </div>
-                    <div class="pagination">
-                        <div id="pageInfo">Hiển thị 0 danh mục</div>
-                        <div class="pager-btns" id="pagerButtons"></div>
-                    </div>
-                </section>
-            </section>
-        </main>
-    </div>
-
-    <div id="sidebarBackdrop" class="sidebar-backdrop"></div>
-
-    <div id="categoryModal" class="modal" aria-hidden="true">
-        <div class="modal-card">
-            <h3 class="modal-title" id="modalTitle">Thêm danh mục</h3>
-            <form id="categoryForm">
-                <div class="form-grid">
-                    <input id="fName" class="field" type="text" placeholder="Tên danh mục" required>
-                    <input id="fParentId" class="field" type="number" min="0" step="1" placeholder="Parent ID (không bắt buộc)">
-                    <select id="fStatus" class="select">
-                        <option value="ACTIVE">ACTIVE</option>
-                        <option value="INACTIVE">INACTIVE</option>
+            <!-- FILTER -->
+            <section class="panel">
+                <div class="controls">
+                    <input id="searchInput" class="field" placeholder="Search...">
+                    <select id="productTypeFilter" class="select">
+                        <option value="all">All product types</option>
+                        <option value="BOOK">BOOK</option>
+                        <option value="ELECTRONICS">ELECTRONICS</option>
+                        <option value="FASHION">FASHION</option>
                     </select>
-                    <textarea id="fDescription" class="textarea full" placeholder="Mô tả danh mục"></textarea>
-                    <div class="full" style="display:grid; gap:8px;">
-                        <label style="font-weight:700;">Thuộc tính có sẵn (bắt buộc chọn ít nhất 1)</label>
-                        <select id="fExistingAttributes" class="select" multiple style="min-height:120px; padding:8px;"></select>
-                        <small style="color:#64748b;">Giữ Ctrl/Cmd để chọn nhiều thuộc tính.</small>
-                    </div>
-                    <div class="full" style="display:grid; grid-template-columns: 1.3fr 1fr 1fr auto; gap:8px; align-items:end;">
-                        <input id="fNewAttrName" class="field" type="text" placeholder="Tên thuộc tính mới">
-                        <input id="fNewAttrType" class="field" type="text" placeholder="Kiểu dữ liệu (text, number,...)" >
-                        <input id="fNewAttrUnit" class="field" type="text" placeholder="Đơn vị (tùy chọn)">
-                        <button id="addNewAttrBtn" type="button" class="btn">+ Thêm</button>
-                    </div>
-                    <div class="full" id="newAttrList" style="display:grid; gap:6px;"></div>
+                    <button id="reloadBtn" class="btn">Reload</button>
                 </div>
-                <div class="modal-actions">
-                    <button id="cancelBtn" class="btn" type="button">Hủy</button>
-                    <button class="btn btn-primary" type="submit">Lưu</button>
+                <div id="statusBox" class="status-box"></div>
+            </section>
+
+            <!-- TABLE -->
+            <section class="panel">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Product Type</th>
+                            <th>Parent</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody id="categoryTableBody"></tbody>
+                    </table>
                 </div>
-            </form>
-        </div>
+
+                <div class="pagination">
+                    <div id="pageInfo">Showing 0 categories</div>
+                </div>
+            </section>
+
+        </section>
+    </main>
+</div>
+
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+<!-- MODAL -->
+<div id="categoryModal" class="modal">
+    <div class="modal-card">
+        <h3 id="modalTitle">Add Category</h3>
+
+        <form id="categoryForm">
+            <div class="form-grid">
+                <input id="fName" class="field" placeholder="Category name" required>
+                <select id="fProductType" class="select" required>
+                    <option value="ELECTRONICS">ELECTRONICS</option>
+                    <option value="BOOK">BOOK</option>
+                    <option value="FASHION">FASHION</option>
+                </select>
+                <select id="fParentId" class="select full">
+                    <option value="">No parent</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="cancelBtn" class="btn">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
     </div>
+</div>
 
-    <script src="{% static 'app/staff_common.js' %}"></script>
-    <script>
-        const state = {
-            categories: [],
-            filtered: [],
-            page: 1,
-            pageSize: 8,
-            editingId: null,
-            allAttributes: [],
-            newAttributes: [],
+<script src="{% static 'app/staff_common.js' %}"></script>
+<script>
+    initStaffCommonUI();
+
+    const state = {
+        categories: [],
+        filtered: [],
+        editingId: null,
+    };
+
+    const table = document.getElementById("categoryTableBody");
+    const statusBox = document.getElementById("statusBox");
+    const addBtn = document.getElementById("addBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const searchInput = document.getElementById("searchInput");
+    const productTypeFilter = document.getElementById("productTypeFilter");
+    const categoryModal = document.getElementById("categoryModal");
+    const categoryForm = document.getElementById("categoryForm");
+    const modalTitle = document.getElementById("modalTitle");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const fName = document.getElementById("fName");
+    const fProductType = document.getElementById("fProductType");
+    const fParentId = document.getElementById("fParentId");
+
+    function showStatus(message, type) {
+        statusBox.className = "status-box" + (type ? " " + type : "");
+        statusBox.textContent = message;
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    async function fetchJson(url, options) {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        let data = {};
+        try {
+            data = JSON.parse(text || "{}");
+        } catch (error) {
+            data = { message: text || "Request failed." };
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || data.message || "Request failed.");
+        }
+
+        return data;
+    }
+
+    function normalizeCategory(item) {
+        const parentValue = item.parent_id ?? item.parent ?? null;
+        const nestedParent = parentValue && typeof parentValue === "object" ? parentValue.id : parentValue;
+        const parentId = nestedParent === null || nestedParent === undefined || nestedParent === "" ? null : Number(nestedParent);
+        return {
+            id: Number(item.id || 0),
+            name: String(item.name || ""),
+            productType: String(item.product_type || "ELECTRONICS").toUpperCase(),
+            parentId: parentId,
+        };
+    }
+
+    function renderParentOptions(productType, selectedParentId, excludeId) {
+        const items = state.categories.filter((category) => category.productType === productType && Number(category.id) !== Number(excludeId || 0));
+        fParentId.innerHTML = "<option value=''>Không có parent</option>" + items.map((category) => {
+            const selected = Number(category.id) === Number(selectedParentId) ? " selected" : "";
+            return "<option value='" + Number(category.id) + "'" + selected + ">" + escapeHtml(category.name) + "</option>";
+        }).join("");
+    }
+
+    function openModal(category) {
+        const editing = Boolean(category);
+        state.editingId = editing ? Number(category.id) : null;
+        modalTitle.textContent = editing ? "Sửa danh mục" : "Thêm danh mục";
+        fName.value = editing ? (category.name || "") : "";
+        fProductType.value = editing ? category.productType : "ELECTRONICS";
+        renderParentOptions(fProductType.value, editing ? category.parentId : "", editing ? category.id : null);
+        categoryModal.classList.add("show");
+        categoryModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal() {
+        categoryModal.classList.remove("show");
+        categoryModal.setAttribute("aria-hidden", "true");
+        categoryForm.reset();
+        state.editingId = null;
+        fProductType.value = "ELECTRONICS";
+        renderParentOptions("ELECTRONICS", "", null);
+    }
+
+    async function loadCategories() {
+        const payload = await fetchJson("/api/categories/");
+        state.categories = (Array.isArray(payload && payload.data) ? payload.data : (Array.isArray(payload) ? payload : [])).map(normalizeCategory);
+        applyFilters();
+        renderParentOptions(fProductType.value || "ELECTRONICS", fParentId.value || "", state.editingId);
+        showStatus("Đã tải dữ liệu", "ok");
+    }
+
+    function applyFilters() {
+        const keyword = searchInput.value.toLowerCase();
+        const productType = productTypeFilter.value;
+
+        state.filtered = state.categories.filter((category) => {
+            const matchesKeyword = !keyword || category.name.toLowerCase().includes(keyword) || String(category.id).includes(keyword);
+            const matchesType = productType === "all" || category.productType === productType;
+            return matchesKeyword && matchesType;
+        });
+
+        render();
+    }
+
+    function render() {
+        if (!state.filtered.length) {
+            table.innerHTML = "<tr><td colspan='5'>Không có dữ liệu</td></tr>";
+            document.getElementById("pageInfo").textContent = "Hiển thị 0 danh mục";
+            return;
+        }
+
+        table.innerHTML = state.filtered.map((category) => {
+            const parent = category.parentId ? state.categories.find((item) => Number(item.id) === Number(category.parentId)) : null;
+            return `
+            <tr>
+                <td>#${category.id}</td>
+                <td>${escapeHtml(category.name)}</td>
+                <td>${escapeHtml(category.productType)}</td>
+                <td>${parent ? escapeHtml(parent.name) : "-"}</td>
+                <td>
+                    <div class="actions">
+                        <button class="btn btn-xs" type="button" onclick="openEdit(${category.id})">Sửa</button>
+                        <button class="btn btn-xs btn-danger" type="button" onclick="removeCategory(${category.id})">Xoá</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+        }).join("");
+
+        document.getElementById("pageInfo").textContent = "Hiển thị " + state.filtered.length + " danh mục";
+    }
+
+    function openEdit(id) {
+        const category = state.categories.find((item) => Number(item.id) === Number(id));
+        if (!category) {
+            showStatus("Không tìm thấy danh mục.", "error");
+            return;
+        }
+        openModal(category);
+    }
+
+    async function removeCategory(id) {
+        if (!confirm("Xoá danh mục #" + id + "?")) {
+            return;
+        }
+
+        try {
+            await fetchJson("/api/categories/" + id + "/", { method: "DELETE" });
+            await loadCategories();
+            showStatus("Đã xoá danh mục", "ok");
+        } catch (error) {
+            showStatus(error.message || "Xoá thất bại", "error");
+        }
+    }
+
+    async function saveCategory(event) {
+        event.preventDefault();
+
+        const payload = {
+            name: fName.value.trim(),
+            product_type: fProductType.value,
         };
 
-        initStaffCommonUI();
-
-        const searchInput = document.getElementById("searchInput");
-        const keywordInput = document.getElementById("keywordInput");
-        const statusFilter = document.getElementById("statusFilter");
-        const reloadBtn = document.getElementById("reloadBtn");
-        const addBtn = document.getElementById("addBtn");
-        const statusBox = document.getElementById("statusBox");
-        const categoryTableBody = document.getElementById("categoryTableBody");
-        const pageInfo = document.getElementById("pageInfo");
-        const pagerButtons = document.getElementById("pagerButtons");
-
-        const categoryModal = document.getElementById("categoryModal");
-        const categoryForm = document.getElementById("categoryForm");
-        const modalTitle = document.getElementById("modalTitle");
-        const cancelBtn = document.getElementById("cancelBtn");
-        const fName = document.getElementById("fName");
-        const fParentId = document.getElementById("fParentId");
-        const fStatus = document.getElementById("fStatus");
-        const fDescription = document.getElementById("fDescription");
-        const fExistingAttributes = document.getElementById("fExistingAttributes");
-        const fNewAttrName = document.getElementById("fNewAttrName");
-        const fNewAttrType = document.getElementById("fNewAttrType");
-        const fNewAttrUnit = document.getElementById("fNewAttrUnit");
-        const addNewAttrBtn = document.getElementById("addNewAttrBtn");
-        const newAttrList = document.getElementById("newAttrList");
-
-        function showStatus(message, type) {
-            statusBox.className = "status-box " + type;
-            statusBox.textContent = message;
+        const parentId = fParentId.value ? Number(fParentId.value) : null;
+        if (parentId) {
+            payload.parent = parentId;
+        } else {
+            payload.parent = null;
         }
 
-        function escapeHtml(v) {
-            return String(v || "")
-                .replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll('"', "&quot;")
-                .replaceAll("'", "&#39;");
+        if (!payload.name) {
+            showStatus("Tên danh mục là bắt buộc.", "error");
+            return;
         }
 
-        async function fetchJson(url, options) {
-            const response = await fetch(url, options);
-            const text = await response.text();
-            let data = {};
-            try {
-                data = JSON.parse(text || "{}");
-            } catch (error) {
-                data = { message: text || "Phản hồi không hợp lệ." };
-            }
-
-            if (!response.ok) {
-                throw new Error(data.error || data.message || "Yêu cầu thất bại.");
-            }
-
-            return data;
-        }
-
-        function normalizeCategories(payload) {
-            const rows = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.data) ? payload.data : []);
-            return rows.map((item) => {
-                return {
-                    id: Number(item.id || 0),
-                    name: String(item.name || ""),
-                    description: String(item.description || ""),
-                    parentId: item.parent_id === null || item.parent_id === undefined ? null : Number(item.parent_id),
-                    status: String(item.status || "ACTIVE"),
-                    attributes: Array.isArray(item.attributes) ? item.attributes : [],
-                };
+        try {
+                const wasEditing = Boolean(state.editingId);
+            const url = state.editingId ? "/api/categories/" + state.editingId + "/" : "/api/categories/";
+            const method = state.editingId ? "PUT" : "POST";
+            await fetchJson(url, {
+                method: method,
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
             });
+            closeModal();
+            await loadCategories();
+                showStatus(wasEditing ? "Đã cập nhật danh mục" : "Đã thêm danh mục", "ok");
+        } catch (error) {
+            showStatus(error.message || "Lưu thất bại", "error");
         }
+    }
 
-        function renderAttributeOptions() {
-            fExistingAttributes.innerHTML = state.allAttributes.map((attr) => {
-                return "<option value='" + Number(attr.id) + "'>" + escapeHtml(attr.name) + " (" + escapeHtml(attr.data_type || "text") + ")</option>";
-            }).join("");
+    addBtn.addEventListener("click", function () {
+        openModal(null);
+    });
+    cancelBtn.addEventListener("click", closeModal);
+    categoryForm.addEventListener("submit", saveCategory);
+    searchInput.addEventListener("input", applyFilters);
+    productTypeFilter.addEventListener("change", applyFilters);
+    reloadBtn.addEventListener("click", loadCategories);
+    fProductType.addEventListener("change", function () {
+        if (state.editingId) {
+            renderParentOptions(fProductType.value, fParentId.value || "", state.editingId);
+            return;
         }
+        renderParentOptions(fProductType.value, "", null);
+    });
 
-        function renderNewAttributes() {
-            if (!state.newAttributes.length) {
-                newAttrList.innerHTML = "<small style='color:#64748b;'>Chưa có thuộc tính mới.</small>";
-                return;
-            }
-            newAttrList.innerHTML = state.newAttributes.map((attr, index) => {
-                return "<div style='display:flex; justify-content:space-between; gap:8px; border:1px solid #e2e8f0; border-radius:8px; padding:8px;'>"
-                    + "<span>" + escapeHtml(attr.name) + " · " + escapeHtml(attr.data_type) + (attr.unit ? " · " + escapeHtml(attr.unit) : "") + "</span>"
-                    + "<button type='button' class='btn btn-xs btn-danger' onclick='removeNewAttribute(" + index + ")'>Xóa</button>"
-                    + "</div>";
-            }).join("");
+    document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && categoryModal.classList.contains("show")) {
+            closeModal();
         }
+    });
 
-        function getSelectedExistingAttributeIds() {
-            return Array.from(fExistingAttributes.selectedOptions).map((item) => Number(item.value));
-        }
+    loadCategories().catch(function (error) {
+        showStatus(error.message || "Khởi tạo thất bại", "error");
+    });
+</script>
 
-        async function loadAttributes() {
-            const payload = await fetchJson("/api/attributes/");
-            const rows = Array.isArray(payload) ? payload : (Array.isArray(payload && payload.data) ? payload.data : []);
-            state.allAttributes = rows;
-            renderAttributeOptions();
-        }
-
-        async function loadCategories() {
-            try {
-                const payload = await fetchJson("/api/categories/");
-                state.categories = normalizeCategories(payload);
-                applyFilters();
-                showStatus("Đã tải danh sách category.", "ok");
-            } catch (error) {
-                showStatus(error.message, "error");
-            }
-        }
-
-        function applyFilters() {
-            const textA = searchInput.value.trim().toLowerCase();
-            const textB = keywordInput.value.trim().toLowerCase();
-            const keyword = textB || textA;
-            const statusValue = statusFilter.value;
-
-            state.filtered = state.categories.filter((category) => {
-                const matchKeyword = !keyword
-                    || category.name.toLowerCase().includes(keyword)
-                    || String(category.id).includes(keyword);
-                const matchStatus = statusValue === "all"
-                    || category.status.toLowerCase() === statusValue;
-                return matchKeyword && matchStatus;
-            });
-
-            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-            if (state.page > pageCount) {
-                state.page = pageCount;
-            }
-
-            renderCategories();
-            renderPagination();
-        }
-
-        function renderCategories() {
-            if (!state.filtered.length) {
-                categoryTableBody.innerHTML = "<tr><td colspan='6'>Không có category phù hợp.</td></tr>";
-                pageInfo.textContent = "Hiển thị 0 danh mục";
-                return;
-            }
-
-            const start = (state.page - 1) * state.pageSize;
-            const end = start + state.pageSize;
-            const rows = state.filtered.slice(start, end);
-
-            categoryTableBody.innerHTML = rows.map((c) => (
-                "<tr>"
-                + "<td>#" + c.id + "</td>"
-                + "<td>" + escapeHtml(c.name) + "</td>"
-                + "<td>" + escapeHtml(c.description || "-") + "</td>"
-                + "<td>" + (c.parentId === null ? "-" : c.parentId) + "</td>"
-                + "<td><span class='tag'>" + escapeHtml(c.status) + "</span></td>"
-                + "<td><div class='actions'>"
-                + "<button class='btn btn-xs' onclick='openEdit(" + c.id + ")'>Sửa</button>"
-                + "<button class='btn btn-xs btn-danger' onclick='removeCategory(" + c.id + ")'>Xóa</button>"
-                + "</div></td>"
-                + "</tr>"
-            )).join("");
-
-            pageInfo.textContent = "Hiển thị " + (start + 1) + " - " + Math.min(end, state.filtered.length)
-                + " / " + state.filtered.length + " danh mục";
-        }
-
-        function renderPagination() {
-            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-            let html = "";
-
-            html += "<button class='btn' type='button' " + (state.page === 1 ? "disabled" : "") + " onclick='changePage(" + (state.page - 1) + ")'>Trước</button>";
-
-            for (let page = 1; page <= pageCount; page += 1) {
-                const activeClass = page === state.page ? " active" : "";
-                html += "<button class='page-num" + activeClass + "' type='button' onclick='changePage(" + page + ")'>" + page + "</button>";
-            }
-
-            html += "<button class='btn' type='button' " + (state.page === pageCount ? "disabled" : "") + " onclick='changePage(" + (state.page + 1) + ")'>Sau</button>";
-
-            pagerButtons.innerHTML = html;
-        }
-
-        function changePage(page) {
-            const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-            if (page < 1 || page > pageCount) {
-                return;
-            }
-            state.page = page;
-            renderCategories();
-            renderPagination();
-        }
-
-        function openAdd() {
-            state.editingId = null;
-            modalTitle.textContent = "Thêm danh mục";
-            categoryForm.reset();
-            fStatus.value = "ACTIVE";
-            state.newAttributes = [];
-            renderNewAttributes();
-            categoryModal.classList.add("show");
-        }
-
-        function openEdit(id) {
-            const category = state.categories.find((item) => item.id === id);
-            if (!category) {
-                showStatus("Không tìm thấy category để sửa.", "error");
-                return;
-            }
-
-            state.editingId = id;
-            modalTitle.textContent = "Sửa category #" + id;
-            fName.value = category.name;
-            fParentId.value = category.parentId === null ? "" : category.parentId;
-            fStatus.value = category.status || "ACTIVE";
-            fDescription.value = category.description || "";
-            state.newAttributes = [];
-            renderNewAttributes();
-
-            const selectedIds = new Set((category.attributes || []).map((item) => Number(item.attribute_id || (item.attribute && item.attribute.id) || 0)));
-            Array.from(fExistingAttributes.options).forEach((option) => {
-                option.selected = selectedIds.has(Number(option.value));
-            });
-            categoryModal.classList.add("show");
-        }
-
-        function closeModal() {
-            categoryModal.classList.remove("show");
-        }
-
-        async function removeCategory(id) {
-            const confirmed = window.confirm("Bạn có chắc muốn xóa category #" + id + "?");
-            if (!confirmed) {
-                return;
-            }
-
-            try {
-                await fetchJson("/api/categories/" + id + "/", { method: "DELETE" });
-                showStatus("Đã xóa category #" + id + ".", "ok");
-                await loadCategories();
-            } catch (error) {
-                showStatus("Xóa thất bại: " + error.message, "error");
-            }
-        }
-
-        async function saveCategory(event) {
-            event.preventDefault();
-
-            const selectedAttributeIds = getSelectedExistingAttributeIds();
-            const attributes = [];
-            selectedAttributeIds.forEach((attributeId, index) => {
-                attributes.push({
-                    attribute_id: attributeId,
-                    is_required: true,
-                    display_order: index + 1,
-                });
-            });
-            state.newAttributes.forEach((item, index) => {
-                attributes.push({
-                    name: item.name,
-                    data_type: item.data_type,
-                    unit: item.unit,
-                    is_required: true,
-                    display_order: selectedAttributeIds.length + index + 1,
-                });
-            });
-
-            if (!attributes.length) {
-                showStatus("Category phải có ít nhất 1 thuộc tính.", "error");
-                return;
-            }
-
-            const payload = {
-                name: fName.value.trim(),
-                description: fDescription.value.trim(),
-                parent_id: fParentId.value.trim() === "" ? null : Number(fParentId.value),
-                status: fStatus.value,
-                attributes: attributes,
-            };
-
-            if (!payload.name) {
-                showStatus("Tên category là bắt buộc.", "error");
-                return;
-            }
-
-            try {
-                if (state.editingId) {
-                    await fetchJson("/api/categories/" + state.editingId + "/", {
-                        method: "PATCH",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                    });
-                    showStatus("Đã cập nhật category #" + state.editingId + ".", "ok");
-                } else {
-                    await fetchJson("/api/categories/", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify(payload),
-                    });
-                    showStatus("Đã tạo category mới.", "ok");
-                }
-
-                closeModal();
-                await loadCategories();
-            } catch (error) {
-                showStatus(error.message, "error");
-            }
-        }
-
-        addBtn.addEventListener("click", openAdd);
-        addNewAttrBtn.addEventListener("click", function () {
-            const name = fNewAttrName.value.trim();
-            const dataType = fNewAttrType.value.trim();
-            const unit = fNewAttrUnit.value.trim();
-            if (!name || !dataType) {
-                showStatus("Thuộc tính mới cần name và data_type.", "error");
-                return;
-            }
-            state.newAttributes.push({ name: name, data_type: dataType, unit: unit });
-            fNewAttrName.value = "";
-            fNewAttrType.value = "";
-            fNewAttrUnit.value = "";
-            renderNewAttributes();
-        });
-        cancelBtn.addEventListener("click", closeModal);
-        categoryModal.addEventListener("click", function (event) {
-            if (event.target === categoryModal) {
-                closeModal();
-            }
-        });
-
-        categoryForm.addEventListener("submit", saveCategory);
-        reloadBtn.addEventListener("click", loadCategories);
-
-        searchInput.addEventListener("input", function () {
-            state.page = 1;
-            applyFilters();
-        });
-
-        keywordInput.addEventListener("input", function () {
-            state.page = 1;
-            applyFilters();
-        });
-
-        statusFilter.addEventListener("change", function () {
-            state.page = 1;
-            applyFilters();
-        });
-
-        window.openEdit = openEdit;
-        window.removeCategory = removeCategory;
-        window.changePage = changePage;
-        window.removeNewAttribute = function (index) {
-            state.newAttributes.splice(index, 1);
-            renderNewAttributes();
-        };
-
-        Promise.all([loadAttributes(), loadCategories()]);
-    </script>
 </body>
 </html>

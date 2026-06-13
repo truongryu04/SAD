@@ -1,6 +1,6 @@
 {% extends "app/base.html" %}
 
-{% block title %}Trang chu khach hang{% endblock %}
+{% block title %}Customer Home{% endblock %}
 
 {% block header_sub %}{% endblock %}
 
@@ -13,45 +13,49 @@
     .z-nav { width: min(100%, 980px); margin: 0 auto; }
     .home-header { display: grid; gap: 10px; }
     .top-header { display: grid; grid-template-columns: minmax(120px, 160px) minmax(260px, 1fr) auto; gap: 10px; align-items: center; }
-    .logo-badge { font-weight: 800; padding: 10px 12px; border-radius: 12px; background: #0ea5a4; color: #fff; text-align: center; }
-    .search-wrap { display: flex; gap: 8px; }
-    .search-wrap .input { min-width: 220px; }
-    .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-left: auto; }
-    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-    .icon-btn svg { width: 20px; height: 20px; stroke: #0f172a; }
+    .logo-badge { font-weight: 900; padding: 10px 12px; border-radius: 10px; background: var(--brand); color: #fff; text-align: center; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+    .search-wrap { display: flex; gap: 8px; flex-wrap: wrap; }
+    .search-wrap .input { min-width: 220px; flex: 1 1 220px; }
+    .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-left: auto; flex-wrap: wrap; }
+    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .icon-btn svg { width: 20px; height: 20px; stroke: var(--ink); }
     .user-menu-wrap { position: relative; }
-    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12); padding: 8px; display: none; z-index: 20; }
+    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--panel-shadow); padding: 8px; display: none; z-index: 20; }
     .user-menu.show { display: grid; gap: 6px; }
     .user-menu button,
     .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: #0f172a; cursor: pointer; }
-    .user-menu a { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+    .user-menu a { background: var(--danger-bg); color: var(--danger-fg); border-color: #fecdd3; }
     .cat-strip { display: flex; align-items: center; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 10px; scrollbar-gutter: stable both-edges; }
-    .cat-chip { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 12px; font-weight: 700; cursor: pointer; white-space: nowrap; line-height: 1.2; }
-    .cat-chip.active { background: #0ea5a4; color: #fff; border-color: #0ea5a4; }
+    .cat-chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 8px 12px; font-weight: 700; cursor: pointer; white-space: nowrap; line-height: 1.2; }
+    .cat-chip.active { background: var(--brand); color: #fff; border-color: var(--brand); }
     .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
-    .p-card { border: 1px solid var(--line); border-radius: 14px; background: #fff; overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
-    .p-card:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgba(15, 23, 42, 0.1); }
-    .p-image { position: relative; height: 130px; background: linear-gradient(120deg, #dbeafe, #f0fdfa); display: grid; place-items: center; font-size: 40px; }
+    .p-card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+    .p-card:hover { transform: translateY(-2px); box-shadow: var(--panel-shadow-hover); border-color: var(--line-strong); }
+    .p-image { position: relative; height: 130px; background: linear-gradient(120deg, #f3f7ff, #eef7ee); display: grid; place-items: center; font-size: 40px; overflow: hidden; }
+    .p-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
     .ai-pick-badge { position: absolute; top: 8px; right: 8px; background: #f59e0b; color: #111827; font-size: 11px; font-weight: 900; padding: 4px 8px; border-radius: 999px; }
     .p-body { padding: 10px; display: grid; gap: 8px; }
     .p-name { font-weight: 800; min-height: 40px; }
+    .p-type { display: inline-flex; align-items: center; width: fit-content; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.02em; background: #e0f2fe; color: #075985; }
     .p-meta { color: var(--muted); font-size: 12px; }
+    .p-stock { font-size: 12px; font-weight: 700; color: #166534; }
     .p-row { display: flex; justify-content: space-between; align-items: center; }
-    .p-price { font-weight: 900; color: #0f766e; }
-    .add-cart-btn { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; background: #f0fdfa; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-    .add-cart-btn svg { width: 18px; height: 18px; stroke: #0f766e; }
-    .add-cart-btn:hover { background: #ccfbf1; }
-    .ai-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; background: #f8fafc; padding: 10px; }
+    .p-price { font-weight: 900; color: var(--brand-2); }
+    .add-cart-btn { width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 999px; background: #f1f8f2; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .add-cart-btn svg { width: 18px; height: 18px; stroke: var(--brand-2); }
+    .add-cart-btn:hover { background: #dff1e2; }
+    .ai-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; background: #f8fbff; padding: 10px; }
     .ai-title { font-weight: 800; margin-bottom: 6px; }
     .ai-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: #0f172a; }
     .toast-wrap { position: fixed; top: 16px; right: 16px; display: grid; gap: 8px; z-index: 999; }
     .toast { min-width: 240px; max-width: 320px; border-radius: 10px; padding: 10px 12px; color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); opacity: 0; transform: translateY(-6px); animation: toastIn 0.25s ease forwards; }
-    .toast.ok { background: #0f766e; }
+    .toast.ok { background: var(--brand); }
     .toast.error { background: #b91c1c; }
     @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
     @media (max-width: 980px) {
         .top-header { grid-template-columns: 1fr; }
         .icon-actions { justify-content: flex-start; margin-left: 0; }
+        .search-wrap .input { min-width: 0; width: 100%; flex-basis: 100%; }
     }
 </style>
 {% endblock %}
@@ -59,16 +63,15 @@
 {% block nav %}
     <div class="home-header" style="width:min(100%,980px);">
         <div class="top-header">
-            <div class="logo-badge">EMCommerce</div>
+            <a class="logo-badge" href="/ui/customer/" aria-label="Go to customer home">ECommerce</a>
             <div class="search-wrap">
-                <input id="searchInput" class="input" type="search" placeholder="Tim san pham theo ten hoac thuong hieu...">
+                <input id="searchInput" class="input" type="search" placeholder="Search products by name, type, or category...">
                 <button class="button brand" type="button" onclick="applySearch()">Search</button>
             </div>
             <div class="icon-actions">
-                <a class="nav-link" href="/ui/customer/products/">Categories</a>
-                <button class="nav-link" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" onclick="openCustomerChatbot(this.dataset.chatUrl)">Chatbot</button>
-                <button class="nav-link" type="button" onclick="loadAiSuggestions()">AI goi y</button>
-                <a class="icon-btn" href="/ui/customer/cart/" title="Gio hang" aria-label="Gio hang">
+                <a class="nav-link" href="/ui/customer/orders/">Orders</a>
+                <button class="nav-link" type="button" onclick="loadAiSuggestions()">AI Recommendations</button>
+                <a class="icon-btn" href="/ui/customer/cart/" title="Cart" aria-label="Cart">
                     <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="9" cy="20" r="1"></circle>
                         <circle cx="18" cy="20" r="1"></circle>
@@ -76,14 +79,14 @@
                     </svg>
                 </a>
                 <div class="user-menu-wrap" id="userMenuWrap">
-                    <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Tai khoan" aria-label="Tai khoan">
+                    <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Account" aria-label="Account">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M20 21a8 8 0 1 0-16 0"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                         </svg>
                     </button>
                     <div id="userMenu" class="user-menu">
-                        <button type="button" onclick="openProfileEditor()">Thay doi thong tin ca nhan</button>
+                        <button type="button" onclick="openProfileEditor()">Edit profile</button>
                         <a href="/ui/logout/">Logout</a>
                     </div>
                 </div>
@@ -94,12 +97,12 @@
 {% endblock %}
 
 {% block primary %}
-    <h2 class="h2">San pham noi bat</h2>
-    <p class="sub">Du lieu duoc lay tu product-service va category-service qua API Gateway.</p>
+    <h2 class="h2">Featured Products</h2>
+    <p class="sub">Data fetched from product-service via API Gateway.</p>
     <div id="toastWrap" class="toast-wrap" aria-live="polite" aria-atomic="true"></div>
     <div id="status" class="status" style="margin-top:10px;"></div>
     <div id="aiBox" class="ai-box" style="display:none;">
-        <div class="ai-title">AI goi y cho ban</div>
+        <div class="ai-title">AI recommendations for you</div>
         <ul id="aiList" class="ai-list"></ul>
     </div>
     <div id="productGrid" class="product-grid"></div>
@@ -108,7 +111,7 @@
 {% block secondary %}{% endblock %}
 
 {% block extra %}
-    <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Mo chatbot" title="Chat voi AI">💬</button>
+    <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Open chatbot" title="Chat with AI">Chat</button>
 {% endblock %}
 
 {% block scripts %}
@@ -164,58 +167,159 @@
             return data;
         }
 
-        function normalize(row) {
+        function rowsFromPayload(payload) {
+            if (Array.isArray(payload)) {
+                return payload;
+            }
+            if (payload && Array.isArray(payload.data)) {
+                return payload.data;
+            }
+            if (payload && Array.isArray(payload.results)) {
+                return payload.results;
+            }
+            return [];
+        }
+
+        function productTypeLabel(productType) {
+            const value = String(productType || "").toUpperCase();
+            if (value === "BOOK") {
+                return "Book";
+            }
+            if (value === "ELECTRONICS") {
+                return "Electronics";
+            }
+            if (value === "FASHION") {
+                return "Fashion";
+            }
+            return "Product";
+        }
+
+        function productIcon(productType) {
+            const value = String(productType || "").toUpperCase();
+            if (value === "BOOK") {
+                return "Book";
+            }
+            if (value === "ELECTRONICS") {
+                return "Device";
+            }
+            if (value === "FASHION") {
+                return "Fashion";
+            }
+            return "Product";
+        }
+
+        function productImageUrl(row) {
+            if (!row || typeof row !== "object") {
+                return "";
+            }
+
+            const candidates = [
+                row.image_url,
+                row.imageUrl,
+                row.image,
+                row.thumbnail_url,
+                row.thumbnailUrl,
+                row.thumbnail,
+                row.photo_url,
+                row.photoUrl,
+                row.photo,
+            ];
+
+            const found = candidates.find((v) => typeof v === "string" && v.trim());
+            return found ? found.trim() : "";
+        }
+
+        function productMediaHtml(product) {
+            const url = String(product && product.imageUrl || "").trim();
+            const fallback = escapeHtml(product && product.icon || "Product");
+            if (!url) {
+                return fallback;
+            }
+
+            const escapedUrl = escapeHtml(url);
+            return '<img src="' + escapedUrl + '" alt="' + escapeHtml(product && product.name || 'Product') + '" loading="lazy" onerror="this.remove(); this.parentNode.innerHTML=\'' + fallback.replaceAll("'", "&#39;") + '\';">';
+        }
+
+        function productSummary(product) {
+            const inStock = Number(product.stock || 0) > 0;
+            const stockText = inStock ? (Number(product.stock || 0) + " in stock") : "Out of stock";
+            return product.subtypeText ? (product.subtypeText + " · " + stockText) : stockText;
+        }
+
+        function normalizeProduct(row) {
             const categoryId = Number(row.category_id || 0);
-            const isLaptop = [2, 9, 10].includes(categoryId);
+            const productType = String(row.product_type || "").toUpperCase();
+            const book = row.book && typeof row.book === "object" ? row.book : null;
+            const electronics = row.electronics && typeof row.electronics === "object" ? row.electronics : null;
+            const fashion = row.fashion && typeof row.fashion === "object" ? row.fashion : null;
+            let subtypeText = "";
+
+            if (productType === "BOOK") {
+                subtypeText = [book && book.author, book && book.publisher, book && book.language].filter(Boolean).join(" · ");
+                if (book && book.publication_date) {
+                    subtypeText = subtypeText ? (subtypeText + " · " + book.publication_date) : book.publication_date;
+                }
+            } else if (productType === "ELECTRONICS") {
+                subtypeText = [electronics && electronics.brand, electronics && electronics.model_name].filter(Boolean).join(" · ");
+                if (electronics && (electronics.weight || electronics.dimensions)) {
+                    const dims = [electronics.weight ? (electronics.weight + ' kg') : null, electronics.dimensions].filter(Boolean).join(' · ');
+                    subtypeText = subtypeText ? (subtypeText + ' · ' + dims) : dims;
+                }
+                if (electronics && electronics.warranty !== undefined && electronics.warranty !== null && electronics.warranty !== "") {
+                    subtypeText = subtypeText ? (subtypeText + " · " + electronics.warranty + " mo warranty") : (electronics.warranty + " mo warranty");
+                }
+                if (electronics && electronics.color) {
+                    subtypeText = subtypeText ? (subtypeText + ' · ' + electronics.color) : electronics.color;
+                }
+            } else if (productType === "FASHION") {
+                subtypeText = [fashion && fashion.brand, fashion && fashion.size, fashion && fashion.color].filter(Boolean).join(" · ");
+                if (fashion && fashion.material) subtypeText = subtypeText ? (subtypeText + ' · ' + fashion.material) : fashion.material;
+                if (fashion && fashion.season) subtypeText = subtypeText ? (subtypeText + ' · ' + fashion.season) : fashion.season;
+            }
+
+            const stock = Number(row.stock ?? (String(row.status || "ACTIVE").toUpperCase() === "ACTIVE" ? 1 : 0));
+            const brand = String(
+                (electronics && electronics.brand) ||
+                (book && book.author) ||
+                (fashion && fashion.color) ||
+                row.brand ||
+                "Unknown"
+            );
+
             return {
-                id: row.id,
-                itemType: isLaptop ? "laptop" : "mobile",
-                name: row.name || "Unknown",
-                brand: row.brand || "Unknown",
-                price: row.base_price || 0,
-                stock: String(row.status || "ACTIVE").toUpperCase() === "ACTIVE" ? 50 : 0,
+                id: Number(row.id || 0),
+                itemType: "product",
+                name: String(row.name || "Unknown"),
+                price: Number(row.price ?? row.base_price ?? 0),
+                stock: Number.isFinite(stock) ? stock : 0,
+                productType,
+                productTypeLabel: productTypeLabel(productType),
+                subtypeText,
+                brand,
                 categoryId,
                 categoryName: "",
-                icon: "📦"
+                icon: productIcon(productType),
+                imageUrl: productImageUrl(row),
             };
         }
 
         function resolveCategoryIcon(categoryName, categoryId) {
             const name = String(categoryName || "").trim().toLowerCase();
-            if (name.includes("laptop") || name.includes("dell") || name.includes("asus")) {
-                return "💻";
+            if (name.includes("book") || name.includes("sach")) {
+                return "Book";
             }
-            if (name.includes("dien thoai") || name.includes("apple") || name.includes("samsung") || name.includes("xiaomi")) {
-                return "📱";
+            if (name.includes("fashion") || name.includes("thoi trang") || name.includes("clothing")) {
+                return "Fashion";
             }
-            if (name.includes("may tinh bang") || name.includes("tablet")) {
-                return "📲";
-            }
-            if (name.includes("dong ho")) {
-                return "⌚";
-            }
-            if (name.includes("phu kien") || name.includes("accessory") || name.includes("phu kien cong nghe")) {
-                return "🎧";
+            if (name.includes("electronic") || name.includes("device") || name.includes("phone") || name.includes("laptop")) {
+                return "Device";
             }
 
-            // Fallback by known seed IDs if category name is missing.
             const cid = Number(categoryId || 0);
-            if ([2, 9, 10].includes(cid)) {
-                return "💻";
+            if (cid === 0) {
+                return "Product";
             }
-            if ([1, 6, 7, 8].includes(cid)) {
-                return "📱";
-            }
-            if (cid === 3) {
-                return "📲";
-            }
-            if (cid === 4) {
-                return "⌚";
-            }
-            if (cid === 5) {
-                return "🎧";
-            }
-            return "📦";
+            return "Product";
         }
 
         function normalizeName(v) {
@@ -247,17 +351,30 @@
 
         async function loadInitialData() {
             try {
+                try {
+                    const raw = sessionStorage.getItem('customerCheckoutSuccess');
+                    if (raw) {
+                        sessionStorage.removeItem('customerCheckoutSuccess');
+                        let parsed = null;
+                        try {
+                            parsed = JSON.parse(raw);
+                        } catch {
+                            parsed = null;
+                        }
+                        const orderId = parsed && parsed.orderId ? String(parsed.orderId) : '';
+                        alert(orderId ? ('Đặt hàng thành công! Mã đơn #' + orderId) : 'Đặt hàng thành công!');
+                    }
+                } catch {
+                    // ignore storage errors
+                }
+
                 const [productPayload, categoryPayload] = await Promise.all([
                     fetchJson("/api/products/"),
                     fetchJson("/api/categories/"),
                 ]);
-                const rows = Array.isArray(productPayload)
-                    ? productPayload
-                    : (Array.isArray(productPayload.data) ? productPayload.data : []);
-                state.products = rows.map(normalize);
-                state.categories = Array.isArray(categoryPayload)
-                    ? categoryPayload
-                    : (Array.isArray(categoryPayload.data) ? categoryPayload.data : []);
+                const rows = rowsFromPayload(productPayload);
+                state.products = rows.map(normalizeProduct);
+                state.categories = rowsFromPayload(categoryPayload);
 
                 const nameById = {};
                 state.categories.forEach((c) => {
@@ -271,7 +388,7 @@
 
                 renderCategoryStrip();
                 renderProducts();
-                status("Da tai danh sach san pham.", "ok");
+                status("Product list loaded.", "ok");
             } catch (error) {
                 status(error.message, "error");
             }
@@ -297,7 +414,7 @@
             return state.products.filter((p) => {
                 const matchCategory = state.activeCategory === "all" || String(p.categoryId) === state.activeCategory;
                 const q = state.keyword.toLowerCase();
-                const matchKeyword = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+                const matchKeyword = !q || p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q) || p.productTypeLabel.toLowerCase().includes(q) || String(p.subtypeText || "").toLowerCase().includes(q);
                 return matchCategory && matchKeyword;
             });
         }
@@ -367,7 +484,7 @@
                 rows = pickAllRowsWithCategoryCoverage(rows, 15);
             }
             if (!rows.length) {
-                root.innerHTML = '<div class="empty">Khong tim thay san pham phu hop.</div>';
+                root.innerHTML = '<div class="empty">No matching products found.</div>';
                 return;
             }
 
@@ -375,14 +492,16 @@
                 '<article class="p-card" onclick="openProductDetail(' + p.id + ')">' +
                     '<div class="p-image">' +
                         (isAiPick(p) ? '<span class="ai-pick-badge">AI pick</span>' : '') +
-                        p.icon +
+                        productMediaHtml(p) +
                     '</div>' +
                     '<div class="p-body">' +
+                        '<div class="p-type">' + escapeHtml(p.productTypeLabel) + '</div>' +
                         '<div class="p-name">' + escapeHtml(p.name) + '</div>' +
-                        '<div class="p-meta">' + escapeHtml(p.brand + ' · ' + p.categoryName) + '</div>' +
+                        '<div class="p-meta">' + escapeHtml((p.subtypeText || p.brand || 'Unknown') + ' · ' + p.categoryName) + '</div>' +
+                        '<div class="p-stock">' + escapeHtml(productSummary(p)) + '</div>' +
                         '<div class="p-row">' +
                             '<span class="p-price">' + money(p.price) + '</span>' +
-                            '<button class="add-cart-btn" type="button" onclick="addToCart(event, ' + p.id + ')" title="Them vao gio hang" aria-label="Them vao gio hang">' +
+                            '<button class="add-cart-btn" type="button" onclick="addToCart(event, ' + p.id + ')" title="Add to cart" aria-label="Add to cart">' +
                                 '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
                                     '<circle cx="9" cy="20" r="1"></circle>' +
                                     '<circle cx="18" cy="20" r="1"></circle>' +
@@ -417,8 +536,8 @@
                         quantity: 1,
                     }),
                 });
-                status('Da them vao gio hang.', 'ok');
-                showToast('Them vao gio hang thanh cong.', 'ok');
+                status('Added to cart.', 'ok');
+                showToast('Added to cart successfully.', 'ok');
             } catch (error) {
                 status(error.message, 'error');
                 showToast(error.message, 'error');
@@ -446,7 +565,7 @@
         async function openProfileEditor() {
             closeUserMenu();
             if (!CUSTOMER_ID) {
-                status("Khong tim thay customer id de cap nhat.", "error");
+                status("Customer ID not found for update.", "error");
                 return;
             }
             const currentName = "{{ full_name|default:username|escapejs }}";
@@ -456,7 +575,7 @@
             }
             const fullName = nextName.trim();
             if (!fullName) {
-                status("Ho ten khong duoc de trong.", "error");
+                status("Full name cannot be empty.", "error");
                 return;
             }
             try {
@@ -465,7 +584,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ full_name: fullName }),
                 });
-                status('Da cap nhat thong tin ca nhan.', 'ok');
+                status('Personal information updated.', 'ok');
             } catch (error) {
                 status(error.message, 'error');
             }
@@ -489,7 +608,7 @@
         async function loadAiSuggestions() {
             try {
                 if (!CUSTOMER_ID) {
-                    throw new Error("Khong tim thay customer id de lay goi y.");
+                    throw new Error("Customer ID not found to fetch recommendations.");
                 }
                 const payload = await fetchJson('/api/ai/recommendations/' + CUSTOMER_ID + '/?limit=6');
                 const rows = Array.isArray(payload)
@@ -498,7 +617,7 @@
                 markAiPicks(rows);
                 renderAiSuggestions(rows);
                 renderProducts();
-                status('Da tai ' + rows.length + ' goi y tu AI.', 'ok');
+                status('Loaded ' + rows.length + ' AI recommendations.', 'ok');
             } catch (error) {
                 const fallback = state.products.slice(0, 6).map((p) => ({
                     id: p.id,
@@ -509,7 +628,7 @@
                 markAiPicks(fallback);
                 renderAiSuggestions(fallback);
                 renderProducts();
-                status('AI tam thoi khong kha dung, da hien thi goi y local.', 'warn');
+                status('AI is temporarily unavailable. Showing local recommendations.', 'warn');
             }
         }
 
@@ -544,3 +663,5 @@
         window.addEventListener('load', loadInitialData);
     </script>
 {% endblock %}
+
+

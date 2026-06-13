@@ -1,0 +1,680 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NovaCommerce AI - Performance Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Inconsolata:wght@600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --neon-volt: #faff69;
+      --forest-green: #166534;
+      --dark-forest: #14572f;
+      --pale-yellow: #f4f692;
+      --border-olive: #4f5100;
+      --olive-dark: #161600;
+      --pure-black: #000000;
+      --near-black: #141414;
+      --charcoal: rgba(65, 65, 65, 0.8);
+      --deep-charcoal: #343434;
+      --hover-gray: #3a3a3a;
+      --pure-white: #ffffff;
+      --silver: #a0a0a0;
+      --max-width: 2200px;
+      --radius-sm: 4px;
+      --radius-md: 8px;
+      --space-8: 8px;
+      --space-12: 12px;
+      --space-16: 16px;
+      --space-20: 20px;
+      --space-24: 24px;
+      --space-32: 32px;
+      --space-40: 40px;
+      --space-48: 48px;
+      --space-64: 64px;
+      --shadow-subtle: rgba(0, 0, 0, 0.1) 0 1px 3px, rgba(0, 0, 0, 0.1) 0 1px 2px -1px;
+      --shadow-elevated: rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.1) 0 4px 6px -4px;
+      --shadow-inset: rgba(0, 0, 0, 0.06) 0 4px 4px, rgba(0, 0, 0, 0.14) 0 4px 25px inset;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--pure-black);
+      color: var(--pure-white);
+      font-family: "Inter", "Segoe UI", sans-serif;
+      min-height: 100%;
+    }
+
+    body {
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -2;
+    }
+
+    body::before {
+      background-image: linear-gradient(rgba(65, 65, 65, 0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(65, 65, 65, 0.12) 1px, transparent 1px);
+      background-size: 64px 64px;
+      opacity: 0.35;
+    }
+
+    body::after {
+      z-index: -1;
+      background:
+        radial-gradient(900px 400px at 5% 4%, rgba(250, 255, 105, 0.12), transparent 70%),
+        radial-gradient(700px 350px at 95% 18%, rgba(20, 87, 47, 0.28), transparent 75%),
+        radial-gradient(1200px 500px at 50% 120%, rgba(250, 255, 105, 0.06), transparent 78%);
+    }
+
+    a {
+      color: var(--pure-white);
+      text-decoration: none;
+      transition: color 180ms ease;
+    }
+
+    a:hover {
+      color: var(--neon-volt);
+    }
+
+    .container {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 var(--space-24);
+    }
+
+    .section {
+      padding: var(--space-64) 0;
+    }
+
+    .label {
+      display: inline-block;
+      margin: 0;
+      color: var(--silver);
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.43;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.9);
+      border-bottom: 1px solid var(--charcoal);
+      backdrop-filter: blur(6px);
+    }
+
+    .topbar-inner {
+      min-height: 76px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-20);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: var(--space-12);
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      font-size: 20px;
+      text-transform: uppercase;
+    }
+
+    .brand-mark {
+      width: 26px;
+      height: 26px;
+      border: 1px solid var(--neon-volt);
+      border-radius: var(--radius-sm);
+      background:
+        linear-gradient(180deg, rgba(250, 255, 105, 0.25), rgba(250, 255, 105, 0)),
+        var(--near-black);
+      box-shadow: var(--shadow-inset);
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: var(--space-24);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+
+    .nav a {
+      color: var(--silver);
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: var(--space-12);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--near-black);
+      padding: 12px 16px;
+      font-size: 16px;
+      font-weight: 700;
+      line-height: 1.5;
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease, transform 160ms ease, border-color 160ms ease;
+    }
+
+    .btn:active {
+      color: var(--pale-yellow);
+      box-shadow: var(--shadow-inset);
+      transform: translateY(1px);
+    }
+
+    .btn-neon {
+      background: var(--neon-volt);
+      color: #151515;
+      border-color: var(--neon-volt);
+      padding: 0 16px;
+    }
+
+    .btn-neon:hover {
+      background: rgb(29, 29, 29);
+      color: var(--neon-volt);
+    }
+
+    .btn-green {
+      background: var(--forest-green);
+      color: var(--pure-white);
+      border-color: var(--near-black);
+    }
+
+    .btn-green:hover {
+      background: var(--hover-gray);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--pure-white);
+      border-color: var(--border-olive);
+      padding: 0 32px;
+    }
+
+    .btn-ghost:hover {
+      background: var(--near-black);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: var(--space-40);
+      align-items: end;
+    }
+
+    .hero-title {
+      margin: var(--space-12) 0 var(--space-20);
+      font-size: clamp(36px, 10vw, 96px);
+      line-height: 1;
+      font-weight: 900;
+      max-width: 14ch;
+    }
+
+    .hero-title .accent {
+      color: var(--neon-volt);
+    }
+
+    .hero-copy {
+      margin: 0;
+      color: var(--silver);
+      font-size: 18px;
+      line-height: 1.56;
+      max-width: 54ch;
+    }
+
+    .hero-ctas {
+      margin-top: var(--space-32);
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-12);
+    }
+
+    .hero-panel {
+      border: 1px solid var(--charcoal);
+      border-radius: var(--radius-md);
+      background: rgba(20, 20, 20, 0.6);
+      box-shadow: var(--shadow-elevated);
+      padding: var(--space-20);
+      animation: rise 500ms ease 120ms both;
+    }
+
+    .hero-panel h3 {
+      margin: 0 0 var(--space-12);
+      font-size: 20px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .code {
+      margin: 0;
+      padding: var(--space-16);
+      border: 1px solid var(--deep-charcoal);
+      border-radius: var(--radius-sm);
+      background: var(--near-black);
+      box-shadow: var(--shadow-inset);
+      font-family: "Inconsolata", monospace;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.5;
+      color: var(--pure-white);
+      overflow-x: auto;
+    }
+
+    .code .hint {
+      color: var(--neon-volt);
+    }
+
+    .stats {
+      margin-top: var(--space-48);
+      border: 1px solid var(--charcoal);
+      border-radius: var(--radius-md);
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      overflow: hidden;
+    }
+
+    .stat {
+      padding: var(--space-24);
+      border-right: 1px solid var(--charcoal);
+      background: rgba(20, 20, 20, 0.35);
+      animation: rise 450ms ease both;
+    }
+
+    .stat:last-child {
+      border-right: none;
+    }
+
+    .stat-value {
+      margin: 0;
+      font-size: clamp(42px, 6vw, 72px);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .stat-value.neon {
+      color: var(--neon-volt);
+    }
+
+    .stat-desc {
+      margin: var(--space-8) 0 0;
+      color: var(--silver);
+      font-size: 14px;
+      line-height: 1.43;
+    }
+
+    .features-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: var(--space-20);
+      margin-bottom: var(--space-32);
+    }
+
+    .features-title {
+      margin: 10px 0 0;
+      font-size: clamp(28px, 5vw, 72px);
+      line-height: 1;
+      font-weight: 700;
+      max-width: 14ch;
+    }
+
+    .features-copy {
+      margin: 0;
+      color: var(--silver);
+      max-width: 44ch;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: var(--space-20);
+    }
+
+    .card {
+      border: 1px solid var(--charcoal);
+      border-radius: var(--radius-md);
+      background: rgba(20, 20, 20, 0.45);
+      padding: var(--space-24);
+      box-shadow: var(--shadow-subtle);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+      animation: rise 500ms ease both;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-elevated);
+      border-color: var(--deep-charcoal);
+    }
+
+    .card-featured {
+      border-color: var(--neon-volt);
+      box-shadow: var(--shadow-inset);
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.17;
+      font-weight: 700;
+    }
+
+    .card p {
+      margin: var(--space-12) 0 0;
+      color: var(--silver);
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    .card a {
+      margin-top: var(--space-20);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: 600;
+    }
+
+    .trust {
+      border: 1px solid var(--charcoal);
+      border-radius: var(--radius-md);
+      padding: var(--space-16) var(--space-20);
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: var(--space-16);
+      align-items: center;
+      margin-top: var(--space-48);
+    }
+
+    .trust-logos {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-16);
+      color: var(--silver);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .trust-logos span {
+      border: 1px solid var(--charcoal);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      background: rgba(20, 20, 20, 0.5);
+    }
+
+    .footer {
+      border-top: 1px solid var(--charcoal);
+      padding: var(--space-32) 0;
+      color: var(--silver);
+      font-size: 14px;
+      line-height: 1.43;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: var(--space-12);
+    }
+
+    .hero-left,
+    .hero-panel,
+    .stat,
+    .card,
+    .trust {
+      opacity: 0;
+      transform: translateY(12px);
+      animation: rise 550ms ease forwards;
+    }
+
+    .hero-left { animation-delay: 60ms; }
+    .hero-panel { animation-delay: 180ms; }
+    .stat:nth-child(1) { animation-delay: 90ms; }
+    .stat:nth-child(2) { animation-delay: 160ms; }
+    .stat:nth-child(3) { animation-delay: 230ms; }
+    .stat:nth-child(4) { animation-delay: 300ms; }
+    .card:nth-child(1) { animation-delay: 120ms; }
+    .card:nth-child(2) { animation-delay: 200ms; }
+    .card:nth-child(3) { animation-delay: 280ms; }
+
+    @keyframes rise {
+      from {
+        opacity: 0;
+        transform: translateY(14px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 1279px) {
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .features-head {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+
+    @media (max-width: 1023px) {
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stat {
+        border-right: none;
+        border-bottom: 1px solid var(--charcoal);
+      }
+
+      .stat:nth-last-child(-n + 2) {
+        border-bottom: none;
+      }
+
+      .cards {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .nav {
+        display: none;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .container {
+        padding: 0 var(--space-16);
+      }
+
+      .topbar-inner {
+        min-height: 68px;
+      }
+
+      .hero-title {
+        font-size: clamp(36px, 16vw, 56px);
+      }
+
+      .hero-copy {
+        font-size: 16px;
+      }
+
+      .stats,
+      .cards {
+        grid-template-columns: 1fr;
+      }
+
+      .stat {
+        border-bottom: 1px solid var(--charcoal);
+      }
+
+      .stat:last-child {
+        border-bottom: none;
+      }
+
+      .trust {
+        grid-template-columns: 1fr;
+      }
+
+      .actions {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        NovaCommerce AI
+      </div>
+      <nav class="nav" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#stats">Performance</a>
+        <a href="#trust">Customers</a>
+        <a href="#footer">Docs</a>
+      </nav>
+      <div class="actions">
+        <button class="btn btn-ghost" type="button">View Demo</button>
+        <button class="btn btn-neon" type="button">Start Free</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="section">
+      <div class="container hero">
+        <div class="hero-left">
+          <p class="label">Real-time Product Intelligence</p>
+          <h1 class="hero-title">One <span class="accent">product graph</span> for every shopping decision.</h1>
+          <p class="hero-copy">
+            NovaCommerce AI merges product, inventory, order, and recommendation events into one performance console.
+            Run ranking, personalization, and analytics queries in milliseconds while your storefront stays online.
+          </p>
+          <div class="hero-ctas">
+            <button class="btn btn-green" type="button">Get Started</button>
+            <button class="btn btn-ghost" type="button">Read Architecture</button>
+          </div>
+        </div>
+        <aside class="hero-panel" aria-label="Query preview">
+          <p class="label">Live Query</p>
+          <h3>Inventory-aware recommendation in one request</h3>
+          <pre class="code"><span class="hint">POST</span> /api/v1/recommend/personalized
+{
+  "customer_id": 1205,
+  "limit": 12,
+  "signals": ["behavior", "seasonal", "price_drop"]
+}
+
+<span class="hint">Result:</span> 11 ms median latency</pre>
+        </aside>
+      </div>
+
+      <div class="container" id="stats">
+        <div class="stats" role="list" aria-label="Performance statistics">
+          <article class="stat" role="listitem">
+            <p class="stat-value neon">11ms</p>
+            <p class="stat-desc">Median latency for personalized recommendations.</p>
+          </article>
+          <article class="stat" role="listitem">
+            <p class="stat-value">99.98%</p>
+            <p class="stat-desc">Gateway uptime across storefront and staff portals.</p>
+          </article>
+          <article class="stat" role="listitem">
+            <p class="stat-value neon">2.4B</p>
+            <p class="stat-desc">Product events indexed per day in the graph pipeline.</p>
+          </article>
+          <article class="stat" role="listitem">
+            <p class="stat-value">12x</p>
+            <p class="stat-desc">Faster ranking refresh versus previous split services.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container">
+        <div class="features-head">
+          <div>
+            <p class="label">Feature Grid</p>
+            <h2 class="features-title">Built like an operations cockpit.</h2>
+          </div>
+          <p class="features-copy">
+            Dark surfaces, charcoal containment, and neon highlights keep focus on throughput and control.
+            Every component follows the same interaction signal: hover to neon, active to pale yellow.
+          </p>
+        </div>
+
+        <div class="cards">
+          <article class="card card-featured">
+            <h3>Unified Product Domain</h3>
+            <p>Consolidate category, attribute, and inventory APIs into one product service with a single contract.</p>
+            <a href="#">Inspect schema</a>
+          </article>
+          <article class="card">
+            <h3>Adaptive AI Ranking</h3>
+            <p>Blend behavior, stock, and campaign signals in real time with graceful fallback when services degrade.</p>
+            <a href="#">See ranking flow</a>
+          </article>
+          <article class="card">
+            <h3>Operator-grade Visibility</h3>
+            <p>Track request health, recommendation quality, and graph writes from one dashboard pipeline.</p>
+            <a href="#">Open monitoring</a>
+          </article>
+        </div>
+
+        <div class="trust" id="trust" aria-label="Trusted by brands">
+          <p class="label">Trusted By Teams</p>
+          <div class="trust-logos">
+            <span>Northwind Retail</span>
+            <span>Urban Pixel</span>
+            <span>Vertex Mall</span>
+            <span>Artemis Cart</span>
+            <span>Saffron Mart</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="container footer" id="footer">
+    <span>NovaCommerce AI Interface Prototype</span>
+    <span>Pure Black Canvas | Neon Volt Accent | Inter 900 Display</span>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,504 @@
+{% extends "app/base.html" %}
+
+{% block title %}Checkout · Ecom Gateway{% endblock %}
+
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+  <style>
+    .z-grid { grid-template-columns: 1fr; }
+    .z-lead { display: none; }
+    .z-brand { display: none; }
+    .z-header { justify-content: center; }
+    .z-nav { width: min(100%, 980px); margin: 0 auto; justify-content: space-between; }
+    .nav-left,
+    .nav-right { display: flex; align-items: center; gap: 8px; }
+    .nav-left { min-width: 0; flex: 1; }
+    .nav-right { margin-left: auto; }
+    .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .icon-btn svg { width: 20px; height: 20px; stroke: var(--ink); }
+    .user-menu-wrap { position: relative; }
+    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--panel-shadow); padding: 8px; display: none; z-index: 20; }
+    .user-menu.show { display: grid; gap: 6px; }
+    .user-menu button,
+    .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: var(--danger-bg); min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: var(--danger-fg); cursor: pointer; border-color: #fecdd3; }
+
+    .wrap { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 14px; margin-top: 12px; }
+    .card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 14px; }
+    .card-title { font-weight: 900; font-size: 16px; margin: 0 0 10px; }
+
+    .form { display: grid; gap: 10px; }
+    .helper { color: var(--muted); font-size: 12px; }
+
+    .opt-grid { display: grid; gap: 8px; }
+    .opt {
+      display: grid;
+      grid-template-columns: 18px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px;
+      cursor: pointer;
+      background: #ffffff;
+    }
+    .opt:hover { border-color: var(--line-strong); box-shadow: var(--panel-shadow-hover); }
+    .opt strong { font-weight: 900; }
+    .opt small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .opt input { margin: 0; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
+    th { color: #475569; font-weight: 800; }
+
+    .summary { display: grid; gap: 8px; }
+    .line { display: flex; justify-content: space-between; gap: 10px; }
+
+    @media (max-width: 980px) {
+      .wrap { grid-template-columns: 1fr; }
+      .z-nav { justify-content: flex-start; }
+      .nav-left,
+      .nav-right { width: 100%; flex-wrap: wrap; }
+      .nav-right { margin-left: 0; justify-content: flex-start; }
+    }
+  </style>
+{% endblock %}
+
+{% block nav %}
+  <div class="nav-left">
+    <a class="nav-link" href="/ui/customer/">Home</a>
+    <a class="nav-link" href="/ui/customer/products/">Products</a>
+    <a class="nav-link" href="/ui/customer/cart/">Cart</a>
+    <a class="nav-link" href="/ui/customer/orders/">Orders</a>
+    <button class="nav-link" type="button" onclick="openCustomerChatbot('http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}')">Chatbot</button>
+  </div>
+  <div class="nav-right">
+    <div class="icon-actions">
+      <a class="icon-btn" href="/ui/customer/cart/" title="Cart" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="20" r="1"></circle>
+          <circle cx="18" cy="20" r="1"></circle>
+          <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>
+        </svg>
+      </a>
+      <div class="user-menu-wrap" id="userMenuWrap">
+        <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Account" aria-label="Account">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21a8 8 0 1 0-16 0"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
+        <div id="userMenu" class="user-menu">
+          <button type="button" onclick="openProfileEditor()">Edit profile</button>
+          <a href="/ui/logout/">Logout</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block primary %}
+  <h1 class="h1">Checkout</h1>
+  <p class="sub">Choose shipping & payment method, then place your order.</p>
+
+  <div id="status" class="status" style="margin-top:12px;"></div>
+  <div id="empty" class="empty" style="display:none; margin-top:12px;">Your cart is empty. <a href="/ui/customer/products/">Go shopping</a></div>
+
+  <div class="wrap">
+    <div class="card">
+      <h3 class="card-title">Delivery information</h3>
+
+      <form id="checkoutForm" class="form">
+        <div>
+          <label for="phoneInput" style="display:block; font-weight:800; margin-bottom:6px;">Phone number</label>
+          <input id="phoneInput" class="input" type="tel" placeholder="e.g. 0912345678" required>
+          <div class="helper">We use this to contact you about delivery.</div>
+        </div>
+
+        <div>
+          <label for="addressInput" style="display:block; font-weight:800; margin-bottom:6px;">Shipping address</label>
+          <textarea id="addressInput" class="textarea" placeholder="Street, ward, district, city..." required></textarea>
+        </div>
+
+        <div>
+          <h3 class="card-title" style="margin: 10px 0 8px;">Shipping method</h3>
+          <div id="shippingMethods" class="opt-grid"></div>
+        </div>
+
+        <div>
+          <h3 class="card-title" style="margin: 10px 0 8px;">Payment method</h3>
+          <div id="paymentMethods" class="opt-grid"></div>
+        </div>
+
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:6px;">
+          <a class="button soft" href="/ui/customer/cart/" style="width:auto;">Back to cart</a>
+          <button id="placeOrderBtn" class="button brand" type="submit" style="width:auto;">Pay & Place Order</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">Order summary</h3>
+
+      <div style="overflow:auto;">
+        <table id="itemsTable" style="display:none;">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th style="width:70px;">Qty</th>
+              <th style="width:120px;">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="summary" style="margin-top:10px;">
+        <div class="line"><span>Cart total</span><strong id="cartTotal">0</strong></div>
+        <div class="line"><span>Shipping fee</span><strong id="shipFee">0</strong></div>
+        <div class="line" style="border-top:1px solid #e2e8f0; padding-top:8px;"><span>Grand total</span><strong id="grandTotal">0</strong></div>
+      </div>
+
+      <div class="helper" style="margin-top:10px;">Payment will be simulated by the payment service.</div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
+
+    const state = {
+      cart: null,
+      paymentMethods: [],
+      shippingMethods: [],
+      selectedPayment: null,
+      selectedShipping: null,
+      shippingFee: 0,
+    };
+
+    function status(message, type) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + (type || 'ok');
+      el.textContent = message;
+      el.style.display = message ? 'block' : 'none';
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function money(value) {
+      const num = Number(value || 0);
+      try {
+        return num.toLocaleString('vi-VN') + ' ₫';
+      } catch {
+        return String(num) + ' ₫';
+      }
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let data = {};
+      try {
+        data = JSON.parse(text || "{}");
+      } catch {
+        data = { message: text || "Request failed." };
+      }
+      if (!response.ok) {
+        throw new Error(data.error || data.detail || data.message || "Request failed.");
+      }
+      return data;
+    }
+
+    function setPlaceOrderDisabled(disabled) {
+      const btn = document.getElementById('placeOrderBtn');
+      if (btn) btn.disabled = Boolean(disabled);
+    }
+
+    function renderCart(cart) {
+      const emptyEl = document.getElementById('empty');
+      const table = document.getElementById('itemsTable');
+      const body = document.getElementById('itemsBody');
+
+      const items = Array.isArray(cart?.items) ? cart.items : [];
+      const isEmpty = !items.length;
+
+      emptyEl.style.display = isEmpty ? 'block' : 'none';
+      table.style.display = isEmpty ? 'none' : 'table';
+
+      if (isEmpty) {
+        body.innerHTML = "";
+        document.getElementById('cartTotal').textContent = money(0);
+        updateTotals();
+        setPlaceOrderDisabled(true);
+        return;
+      }
+
+      body.innerHTML = items.map((it) => (
+        '<tr>'
+          + '<td>' + escapeHtml(it.name || 'Unknown') + '</td>'
+          + '<td>' + Number(it.quantity || 0) + '</td>'
+          + '<td>' + money(it.line_total || 0) + '</td>'
+        + '</tr>'
+      )).join('');
+
+      document.getElementById('cartTotal').textContent = money(cart.total || 0);
+      updateTotals();
+      setPlaceOrderDisabled(false);
+    }
+
+    function updateTotals() {
+      const cartTotal = Number(state.cart?.total || 0);
+      const shipFee = Number(state.shippingFee || 0);
+      document.getElementById('shipFee').textContent = money(shipFee);
+      document.getElementById('grandTotal').textContent = money(cartTotal + shipFee);
+    }
+
+    function normalizePaymentMethods(payload) {
+      const rows = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+      return rows
+        .map((m) => ({
+          id: Number(m.id || 0),
+          code: String(m.code || '').trim().toUpperCase(),
+          name: String(m.name || '').trim(),
+          is_active: Boolean(m.is_active),
+        }))
+        .filter((m) => m.code);
+    }
+
+    function normalizeShippingMethods(payload) {
+      const rows = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+      return rows
+        .map((m) => ({
+          id: Number(m.id || 0),
+          code: String(m.code || '').trim().toUpperCase(),
+          name: String(m.name || '').trim(),
+          fee: Number(m.fee || 0),
+          is_active: Boolean(m.is_active),
+        }))
+        .filter((m) => m.code);
+    }
+
+    function renderPaymentMethods() {
+      const box = document.getElementById('paymentMethods');
+      const active = state.paymentMethods.filter((m) => m.is_active);
+
+      const fallback = [
+        { code: 'COD', name: 'Cash On Delivery (COD)' },
+        { code: 'CARD', name: 'Card' },
+        { code: 'VNPAY', name: 'VNPay' },
+        { code: 'MOMO', name: 'MoMo' },
+      ];
+
+      const methods = active.length ? active : fallback;
+
+      if (!state.selectedPayment) {
+        state.selectedPayment = String(methods[0]?.code || 'COD');
+      }
+
+      box.innerHTML = methods.map((m) => {
+        const code = String(m.code || '').toUpperCase();
+        const name = String(m.name || code);
+        const checked = code === String(state.selectedPayment).toUpperCase();
+        return (
+          '<label class="opt">'
+            + '<input type="radio" name="payment_method" value="' + escapeHtml(code) + '" ' + (checked ? 'checked' : '') + ' onchange="selectPayment(\'' + escapeHtml(code) + '\')">'
+            + '<div>'
+              + '<strong>' + escapeHtml(code) + '</strong>'
+              + '<small>' + escapeHtml(name) + '</small>'
+            + '</div>'
+            + '<div></div>'
+          + '</label>'
+        );
+      }).join('');
+    }
+
+    function renderShippingMethods() {
+      const box = document.getElementById('shippingMethods');
+      const active = state.shippingMethods.filter((m) => m.is_active);
+
+      const fallback = [
+        { code: 'STANDARD', name: 'Standard delivery', fee: 0, is_active: true },
+      ];
+
+      const methods = active.length ? active : fallback;
+
+      if (!state.selectedShipping) {
+        state.selectedShipping = String(methods[0]?.code || 'STANDARD');
+      }
+
+      const selected = methods.find((m) => String(m.code).toUpperCase() === String(state.selectedShipping).toUpperCase());
+      state.shippingFee = Number(selected?.fee || 0);
+      updateTotals();
+
+      box.innerHTML = methods.map((m) => {
+        const code = String(m.code || '').toUpperCase();
+        const name = String(m.name || code);
+        const fee = Number(m.fee || 0);
+        const checked = code === String(state.selectedShipping).toUpperCase();
+        return (
+          '<label class="opt">'
+            + '<input type="radio" name="shipping_method" value="' + escapeHtml(code) + '" ' + (checked ? 'checked' : '') + ' onchange="selectShipping(\'' + escapeHtml(code) + '\')">'
+            + '<div>'
+              + '<strong>' + escapeHtml(name) + '</strong>'
+              + '<small>Code: ' + escapeHtml(code) + '</small>'
+            + '</div>'
+            + '<div><strong>' + money(fee) + '</strong></div>'
+          + '</label>'
+        );
+      }).join('');
+    }
+
+    window.selectPayment = function (code) {
+      state.selectedPayment = String(code || '').toUpperCase();
+    };
+
+    window.selectShipping = function (code) {
+      state.selectedShipping = String(code || '').toUpperCase();
+      renderShippingMethods();
+    };
+
+    async function loadCart() {
+      const cart = await fetchJson('/api/customer/carts/?customer_id=' + CUSTOMER_ID);
+      state.cart = cart;
+      renderCart(cart);
+    }
+
+    async function loadPaymentMethods() {
+      try {
+        const payload = await fetchJson('/api/payment/methods/');
+        state.paymentMethods = normalizePaymentMethods(payload);
+      } catch {
+        state.paymentMethods = [];
+      }
+      renderPaymentMethods();
+    }
+
+    async function loadShippingMethods() {
+      try {
+        const payload = await fetchJson('/api/shipping/methods/');
+        state.shippingMethods = normalizeShippingMethods(payload);
+      } catch {
+        state.shippingMethods = [];
+      }
+      renderShippingMethods();
+    }
+
+    async function submitCheckout() {
+      try {
+        setPlaceOrderDisabled(true);
+
+        const phone = String(document.getElementById('phoneInput').value || '').trim();
+        const address = String(document.getElementById('addressInput').value || '').trim();
+
+        if (!phone) {
+          throw new Error('Phone number is required.');
+        }
+        if (!address) {
+          throw new Error('Shipping address is required.');
+        }
+
+        const payload = {
+          customer_id: CUSTOMER_ID,
+          payment_method: String(state.selectedPayment || 'COD').toUpperCase(),
+          shipping_method_code: String(state.selectedShipping || '').toUpperCase(),
+          phone: phone,
+          address: address,
+        };
+
+        const data = await fetchJson('/api/orders/checkout/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const orderId = data?.order?.id;
+        try {
+          sessionStorage.setItem('customerCheckoutSuccess', JSON.stringify({
+            at: Date.now(),
+            orderId: orderId || null,
+          }));
+        } catch {
+          // ignore storage errors
+        }
+
+        window.location.href = '/ui/customer/';
+      } catch (error) {
+        status(error.message, 'error');
+        setPlaceOrderDisabled(false);
+      }
+    }
+
+    function toggleUserMenu(event) {
+      if (event) {
+        event.stopPropagation();
+      }
+      const menu = document.getElementById('userMenu');
+      menu.classList.toggle('show');
+    }
+
+    function closeUserMenu() {
+      const menu = document.getElementById('userMenu');
+      menu.classList.remove('show');
+    }
+
+    async function openProfileEditor() {
+      closeUserMenu();
+      if (!CUSTOMER_ID) {
+        status('Customer ID not found for update.', 'error');
+        return;
+      }
+      const currentName = "{{ full_name|default:username|escapejs }}";
+      const nextName = window.prompt('Nhap ho ten moi:', currentName);
+      if (nextName === null) {
+        return;
+      }
+      const fullName = nextName.trim();
+      if (!fullName) {
+        status('Full name cannot be empty.', 'error');
+        return;
+      }
+      try {
+        await fetchJson('/api/customer/accounts/' + CUSTOMER_ID + '/', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: fullName }),
+        });
+        status('Personal information updated.', 'ok');
+      } catch (error) {
+        status(error.message, 'error');
+      }
+    }
+
+    window.openProfileEditor = openProfileEditor;
+
+    document.addEventListener('click', function (event) {
+      const wrap = document.getElementById('userMenuWrap');
+      if (!wrap || !wrap.contains(event.target)) {
+        closeUserMenu();
+      }
+    });
+
+    document.getElementById('checkoutForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      submitCheckout();
+    });
+
+    window.addEventListener('load', async function () {
+      try {
+        await Promise.all([loadPaymentMethods(), loadShippingMethods(), loadCart()]);
+        status('Ready to checkout.', 'ok');
+      } catch (error) {
+        status(error.message, 'error');
+      }
+    });
+  </script>
+{% endblock %}

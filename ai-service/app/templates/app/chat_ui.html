@@ -199,23 +199,23 @@
     <header class="head">
       <div class="title">
         <strong>Nova Assistant</strong>
-        <small>Tu van san pham voi Ollama + Recommendation</small>
+        <small>Product assistant with Ollama + Recommendations</small>
       </div>
-      <button type="button" id="refreshRec">Tai goi y</button>
+      <button type="button" id="refreshRec">Load recommendations</button>
     </header>
 
     <section class="rec-box">
-      <div class="rec-title">Goi y cho ban</div>
+      <div class="rec-title">Recommendations for You</div>
       <div id="recList" class="rec-list"></div>
     </section>
 
     <main id="messages" class="messages"></main>
 
     <form id="chatForm" class="form">
-      <textarea id="questionInput" class="input" placeholder="Nhap cau hoi ve san pham..." required></textarea>
+      <textarea id="questionInput" class="input" placeholder="Nhap cau hoi ve products..." required></textarea>
       <div class="actions">
-        <button type="button" id="clearBtn">Xoa chat</button>
-        <button class="primary" type="submit">Gui</button>
+        <button type="button" id="clearBtn">Clear chat</button>
+        <button class="primary" type="submit">Send</button>
       </div>
     </form>
   </div>
@@ -269,7 +269,7 @@
       const root = document.getElementById("recList");
       const safeRows = Array.isArray(rows) ? rows : [];
       if (!safeRows.length) {
-        root.innerHTML = '<div style="color:#5b6f96;font-size:12px;">Chua co goi y.</div>';
+        root.innerHTML = '<div style="color:#5b6f96;font-size:12px;">No recommendations yet.</div>';
         return;
       }
       root.innerHTML = safeRows.slice(0, 4).map((item) => {
@@ -308,7 +308,7 @@
     document.getElementById("refreshRec").addEventListener("click", loadRecommendations);
     document.getElementById("clearBtn").addEventListener("click", function () {
       document.getElementById("messages").innerHTML = "";
-      addMessage("bot", "Chat da duoc lam moi.");
+      addMessage("bot", "Chat has been cleared.");
     });
 
     document.getElementById("chatForm").addEventListener("submit", async function (event) {
@@ -322,7 +322,7 @@
       addMessage("user", q);
       input.value = "";
       input.disabled = true;
-      addMessage("bot", "Dang xu ly voi Ollama...");
+      addMessage("bot", "Processing with Ollama...");
 
       try {
         const response = await sendChat(q);
@@ -330,22 +330,24 @@
         if (box.lastElementChild && box.lastElementChild.classList.contains("bot")) {
           box.lastElementChild.remove();
         }
-        addMessage("bot", response.answer || "AI khong tra loi duoc luc nay.");
+        addMessage("bot", response.answer || "AI cannot answer right now.");
         loadRecommendations();
       } catch (error) {
         const box = document.getElementById("messages");
         if (box.lastElementChild && box.lastElementChild.classList.contains("bot")) {
           box.lastElementChild.remove();
         }
-        addMessage("bot", "Khong the ket noi chatbot: " + error.message);
+        addMessage("bot", "No the ket noi chatbot: " + error.message);
       } finally {
         input.disabled = false;
         input.focus();
       }
     });
 
-    addMessage("bot", "Xin chao, minh la Nova Assistant.");
+    addMessage("bot", "Hello, I am Nova Assistant.");
     loadRecommendations();
   </script>
 </body>
 </html>
+
+

@@ -1,0 +1,39 @@
+{% load static %}
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>New Product</title>
+  <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" />
+</head>
+<body>
+<main class="container">
+  <h1>Thêm sản phẩm mới</h1>
+  <form id="product-form">
+    <label>Name: <input type="text" name="name" required></label>
+    <label>Image URL: <input type="url" name="image_url" placeholder="https://..." /></label>
+    <label>Price: <input type="number" name="price" step="0.01" required></label>
+    <label>Stock: <input type="number" name="stock" required></label>
+    <label>Product type:
+      <select name="product_type" id="product_type" required>
+        <option value="">--Chọn--</option>
+        <option value="BOOK">Book</option>
+        <option value="ELECTRONICS">Electronics</option>
+        <option value="FASHION">Fashion</option>
+      </select>
+    </label>
+    <label>Category:
+      <select name="category_id" id="category_id" required></select>
+    </label>
+
+    <div id="subtype-fields"></div>
+
+    <button type="submit">Create</button>
+  </form>
+
+  <pre id="result"></pre>
+</main>
+
+<script src="{% static 'app/product_form.js' %}"></script>
+</body>
+</html>

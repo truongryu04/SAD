@@ -33,6 +33,10 @@ class Order(models.Model):
 
     customer_id = models.IntegerField(db_index=True)
     cart_id = models.IntegerField(null=True, blank=True)
+    phone = models.CharField(max_length=32, blank=True, default="")
+    shipping_address = models.TextField(blank=True, default="")
+    shipping_method_code = models.CharField(max_length=50, blank=True, default="")
+    shipping_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default=PAYMENT_METHOD_COD)
     payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default=PAYMENT_STATUS_PENDING)
     order_status = models.CharField(max_length=20, choices=ORDER_STATUS_CHOICES, default=ORDER_STATUS_CREATED)

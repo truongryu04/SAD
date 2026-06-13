@@ -70,7 +70,7 @@ def _set_checkpoint(source_name, count=0, error_message=""):
 
 def _sync_categories():
     print("[COLLECTOR] _sync_categories called")
-    endpoint = f"{settings.CATEGORY_SERVICE_URL.rstrip('/')}/api/categories/"
+    endpoint = f"{settings.PRODUCT_SERVICE_URL.rstrip('/')}/api/categories/"
     rows = _fetch_json(endpoint)
     count = 0
     for row in rows:
@@ -97,8 +97,8 @@ def _sync_categories():
 def _sync_products():
     print("[COLLECTOR] _sync_products called")
     endpoint = f"{settings.PRODUCT_SERVICE_URL.rstrip('/')}/api/products/"
-    attribute_endpoint = f"{settings.ATTRIBUTE_SERVICE_URL.rstrip('/')}/api/attributes/"
-    product_attribute_endpoint = f"{settings.ATTRIBUTE_SERVICE_URL.rstrip('/')}/api/product-attribute-values/"
+    attribute_endpoint = f"{settings.PRODUCT_SERVICE_URL.rstrip('/')}/api/attributes/"
+    product_attribute_endpoint = f"{settings.PRODUCT_SERVICE_URL.rstrip('/')}/api/product-attribute-values/"
 
     rows = _fetch_json(endpoint)
     attribute_rows = _fetch_json(attribute_endpoint)
@@ -202,10 +202,37 @@ def _sync_products():
 
 def _sync_inventories():
     print("[COLLECTOR] _sync_inventories called")
-    endpoint = f"{settings.INVENTORY_SERVICE_URL.rstrip('/')}/api/inventories/"
-    rows = _fetch_json(endpoint)
-    count = 0
+    endpoint = f"{settings.PRODUCT_SERVICE_URL.rstrip('/')}/api/inventories/"
+    try:
+        rows = _fetch_json(endpoint)
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, ValueError):
+        rows = []
 
+    # Product-service schema v2 removed Inventory table; keep KB service compatible by
+    # falling back to product stock in /api/products/.
+    if not rows:
+        product_endpoint = f"{settings.PRODUCT_SERVICE_URL.rstrip('/')}/api/products/"
+        try:
+            product_rows = _fetch_json(product_endpoint)
+        except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, ValueError):
+            product_rows = []
+        rows = []
+        for item in product_rows:
+            product_id = item.get("id")
+            if product_id is None:
+                continue
+            rows.append(
+                {
+                    "id": product_id,
+                    "variant_id": product_id,
+                    "quantity": item.get("stock") or 0,
+                    "reserved_quantity": 0,
+                    "source": "derived_from_product_stock",
+                    "product": item,
+                }
+            )
+
+    count = 0
     for row in rows:
         external_id = row.get("id")
         if external_id is None:

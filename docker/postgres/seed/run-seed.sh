@@ -31,16 +31,15 @@ wait_table() {
 }
 
 wait_postgres
-wait_table category_service_db app_category
-wait_table attribute_service_db app_attribute
-wait_table inventory_service_db app_inventory
 wait_table product_service_db app_product
+wait_table product_service_db app_category
+wait_table product_service_db app_book
+wait_table product_service_db app_electronics
+wait_table product_service_db app_fashion
 wait_table ai_service_db app_airequest
 
 echo "[postgres-seeder] Running PostgreSQL seed files..."
-psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d category_service_db -f /seeds/seed_category_service.sql
-psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d attribute_service_db -f /seeds/seed_attribute_service.sql
-psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d inventory_service_db -f /seeds/seed_inventory_service.sql
+psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d product_service_db -f /seeds/seed_category_service.sql
 psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d product_service_db -f /seeds/seed_product_service.sql
 psql -h "${PGHOST}" -p "${PGPORT}" -U "${PGUSER}" -d ai_service_db -f /seeds/seed_ai_service.sql
 

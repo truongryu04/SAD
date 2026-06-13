@@ -1,0 +1,30 @@
+<aside id="sidebar" class="sidebar">
+    <div class="brand">
+        <div class="brand-mark">EC</div>
+        <div class="brand-text">
+            <h1>Ecommerce</h1>
+            {% if role|default:""|upper == "ADMIN" %}
+                <p>Admin Console</p>
+            {% else %}
+                <p>Staff Console</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <p class="menu-label">Navigation</p>
+    <ul class="nav-menu" id="navMenu">
+        <li>
+            <a class="nav-link {% if active == 'dashboard' %}active{% endif %}"
+               href="{% if role|default:""|upper == 'ADMIN' %}/ui/admin/{% else %}/ui/staff/{% endif %}">Dashboard</a>
+        </li>
+        <li><a class="nav-link {% if active == 'products' %}active{% endif %}" href="/ui/staff/products/">Product Management</a></li>
+        <li><a class="nav-link {% if active == 'categories' %}active{% endif %}" href="/ui/staff/categories/">Category Management</a></li>
+        <li><a class="nav-link {% if active == 'orders' %}active{% endif %}" href="/ui/staff/orders/">Order Management</a></li>
+        <li><a class="nav-link {% if active == 'customers' %}active{% endif %}" href="/ui/staff/customers/">Customer Management</a></li>
+
+        {% if role|default:""|upper == "ADMIN" %}
+            <li><a class="nav-link {% if active == 'payment_methods' %}active{% endif %}" href="/ui/admin/payment-methods/">Payment Methods</a></li>
+            <li><a class="nav-link {% if active == 'shipping_methods' %}active{% endif %}" href="/ui/admin/shipping-methods/">Shipping Methods</a></li>
+        {% endif %}
+    </ul>
+</aside>

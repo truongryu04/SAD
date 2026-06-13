@@ -8,6 +8,8 @@ from typing import Dict, List
 
 from django.conf import settings
 
+from .lstm_recommender import LSTMNextItemService
+
 
 def _fetch_json(url: str, timeout: int = 20) -> Dict:
     req = urllib.request.Request(url=url, headers={"Accept": "application/json"}, method="GET")
@@ -42,22 +44,17 @@ class ProductRecommenderService:
         self,
         customer_service_url: str,
         product_service_url: str,
-        laptop_service_url: str,
-        mobile_service_url: str,
         decay_days: int = 30,
     ) -> None:
         self.customer_service_url = customer_service_url.rstrip("/")
         self.product_service_url = product_service_url.rstrip("/")
-        self.laptop_service_url = laptop_service_url.rstrip("/")
-        self.mobile_service_url = mobile_service_url.rstrip("/")
         self.decay_days = decay_days
-
-    def _category_to_item_type(self, category_id) -> str:
-        try:
-            cid = int(category_id)
-        except (TypeError, ValueError):
-            return "mobile"
-        return "laptop" if cid in {2, 9, 10} else "mobile"
+        self.lstm_service = LSTMNextItemService(
+            artifact_dir=str(getattr(settings, "LSTM_ARTIFACT_DIR", settings.BASE_DIR / "artifacts" / "lstm")),
+            max_seq_len=int(getattr(settings, "LSTM_MAX_SEQ_LEN", 20)),
+            embed_dim=int(getattr(settings, "LSTM_EMBED_DIM", 64)),
+            hidden_dim=int(getattr(settings, "LSTM_HIDDEN_DIM", 128)),
+        )
 
     def _activity_score(self, activity: Dict) -> float:
         action = str(activity.get("action") or "").upper()
@@ -102,48 +99,24 @@ class ProductRecommenderService:
             item_id = item.get("id")
             if item_id is None:
                 continue
-            item_type = self._category_to_item_type(item.get("category_id"))
-            key = f"{item_type}:{item_id}"
+            key = f"product:{item_id}"
+
+            stock_raw = item.get("stock")
+            try:
+                stock_value = int(stock_raw) if stock_raw is not None else None
+            except (TypeError, ValueError):
+                stock_value = None
+
+            if stock_value is None:
+                stock_value = 1 if str(item.get("status") or "").upper() == "ACTIVE" else 0
+
             products[key] = {
-                "item_type": item_type,
+                "item_type": "product",
                 "item_id": item_id,
                 "name": item.get("name", "Unknown"),
                 "brand": item.get("brand", "Unknown"),
                 "price": item.get("base_price", 0),
-                "stock": 1 if str(item.get("status") or "").upper() == "ACTIVE" else 0,
-            }
-
-        if products:
-            return products
-
-        laptops = _fetch_json(f"{self.laptop_service_url}/laptops/").get("data", [])
-        for item in laptops if isinstance(laptops, list) else []:
-            item_id = item.get("id")
-            if item_id is None:
-                continue
-            key = f"laptop:{item_id}"
-            products[key] = {
-                "item_type": "laptop",
-                "item_id": item_id,
-                "name": item.get("name", "Unknown"),
-                "brand": item.get("brand", "Unknown"),
-                "price": item.get("price", 0),
-                "stock": item.get("stock", 0),
-            }
-
-        mobiles = _fetch_json(f"{self.mobile_service_url}/mobiles/").get("data", [])
-        for item in mobiles if isinstance(mobiles, list) else []:
-            item_id = item.get("id")
-            if item_id is None:
-                continue
-            key = f"mobile:{item_id}"
-            products[key] = {
-                "item_type": "mobile",
-                "item_id": item_id,
-                "name": item.get("name", "Unknown"),
-                "brand": item.get("brand", "Unknown"),
-                "price": item.get("price", 0),
-                "stock": item.get("stock", 0),
+                "stock": stock_value,
             }
 
         return products
@@ -153,38 +126,36 @@ class ProductRecommenderService:
         all_activities = self._load_activities(customer_id=None, limit=5000)
         catalog = self._load_products()
 
-        # Personal preference by concrete product and product type.
+        # Personal preference by concrete product.
         user_item_score: Dict[str, float] = {}
-        type_preference: Dict[str, float] = {"laptop": 0.0, "mobile": 0.0}
         for act in user_activities:
-            item_type = str(act.get("item_type") or "").lower()
-            item_id = act.get("item_id")
-            if item_type in {"laptop", "mobile"} and item_id is not None:
-                key = f"{item_type}:{item_id}"
-                activity_score = self._activity_score(act)
-                user_item_score[key] = user_item_score.get(key, 0.0) + activity_score
-                type_preference[item_type] += activity_score
+            item_id = act.get("product_id")
+            if item_id is None:
+                item_id = act.get("item_id")
+            if item_id is None:
+                continue
+            key = f"product:{item_id}"
+            activity_score = self._activity_score(act)
+            user_item_score[key] = user_item_score.get(key, 0.0) + activity_score
 
         # Global trend from all users.
         global_item_score: Dict[str, float] = {}
         for act in all_activities:
-            item_type = str(act.get("item_type") or "").lower()
-            item_id = act.get("item_id")
-            if item_type not in {"laptop", "mobile"} or item_id is None:
+            item_id = act.get("product_id")
+            if item_id is None:
+                item_id = act.get("item_id")
+            if item_id is None:
                 continue
-            key = f"{item_type}:{item_id}"
+            key = f"product:{item_id}"
             global_item_score[key] = global_item_score.get(key, 0.0) + self._activity_score(act)
 
         scored: List[Dict] = []
         for key, product in catalog.items():
-            item_type = product["item_type"]
-
             # Keep already interacted products in the candidate list.
             # Recommendation is driven by 3 behaviors: view, add-to-cart, rate.
             score = (
-                0.6 * user_item_score.get(key, 0.0)
-                + 0.25 * global_item_score.get(key, 0.0)
-                + 0.15 * type_preference.get(item_type, 0.0)
+                0.7 * user_item_score.get(key, 0.0)
+                + 0.3 * global_item_score.get(key, 0.0)
             )
 
             if score <= 0:
@@ -232,7 +203,7 @@ class ProductRecommenderService:
             catalog_product = by_product_id.get(product_id)
             if catalog_product:
                 product = {
-                    "item_type": catalog_product.get("item_type", "mobile"),
+                    "item_type": catalog_product.get("item_type", "product"),
                     "item_id": product_id,
                     "name": catalog_product.get("name", row.get("name") or "Unknown"),
                     "brand": catalog_product.get("brand", row.get("brand") or "Unknown"),
@@ -241,7 +212,7 @@ class ProductRecommenderService:
                 }
             else:
                 product = {
-                    "item_type": "mobile",
+                    "item_type": "product",
                     "item_id": product_id,
                     "name": row.get("name") or "Unknown",
                     "brand": row.get("brand") or "Unknown",
@@ -288,7 +259,7 @@ class ProductRecommenderService:
             if item_id is None:
                 continue
             merged[int(item_id)] = {
-                "item_type": item.get("item_type", "mobile"),
+                "item_type": item.get("item_type", "product"),
                 "item_id": int(item_id),
                 "name": item.get("name", "Unknown"),
                 "brand": item.get("brand", "Unknown"),
@@ -312,7 +283,7 @@ class ProductRecommenderService:
             catalog_product = by_product_id.get(product_id)
             if catalog_product:
                 merged[product_id] = {
-                    "item_type": catalog_product.get("item_type", "mobile"),
+                    "item_type": catalog_product.get("item_type", "product"),
                     "item_id": product_id,
                     "name": catalog_product.get("name", row.get("name") or "Unknown"),
                     "brand": catalog_product.get("brand", row.get("brand") or "Unknown"),
@@ -321,7 +292,7 @@ class ProductRecommenderService:
                 }
             else:
                 merged[product_id] = {
-                    "item_type": "mobile",
+                    "item_type": "product",
                     "item_id": product_id,
                     "name": row.get("name") or "Unknown",
                     "brand": row.get("brand") or "Unknown",
@@ -368,6 +339,113 @@ class ProductRecommenderService:
 
         return output[:final_limit]
 
+    @staticmethod
+    def _to_product_token(activity: Dict) -> str | None:
+        item_id = activity.get("product_id") if activity.get("product_id") is not None else activity.get("item_id")
+        if item_id is None:
+            return None
+        try:
+            pid = int(item_id)
+        except (TypeError, ValueError):
+            return None
+        return f"product:{pid}"
+
+    def train_lstm_model(
+        self,
+        epochs: int = 8,
+        batch_size: int = 64,
+        learning_rate: float = 1e-3,
+        min_user_events: int = 3,
+    ) -> Dict:
+        activities = self._load_activities(customer_id=None, limit=50000)
+        return self.lstm_service.train(
+            activities=activities,
+            epochs=epochs,
+            batch_size=batch_size,
+            learning_rate=learning_rate,
+            min_user_events=min_user_events,
+        )
+
+    def recommend_lstm(self, customer_id: int, limit: int = 20) -> List[Dict]:
+        final_limit = max(1, limit)
+        if not self.lstm_service.enabled:
+            return self.recommend_hybrid(customer_id=customer_id, limit=final_limit)
+
+        user_activities = self._load_activities(customer_id=customer_id, limit=200)
+        sequence_tokens: List[str] = []
+        for act in user_activities:
+            token = self._to_product_token(act)
+            if token:
+                sequence_tokens.append(token)
+
+        if not sequence_tokens:
+            return self.recommend_hybrid(customer_id=customer_id, limit=final_limit)
+
+        preds = self.lstm_service.predict_top_k(sequence_tokens=sequence_tokens, top_k=max(final_limit * 3, 30))
+        if not preds:
+            return self.recommend_hybrid(customer_id=customer_id, limit=final_limit)
+
+        catalog = self._load_products()
+        output: List[Dict] = []
+        for row in preds:
+            token = row.get("token")
+            if token not in catalog:
+                continue
+            product = catalog[token]
+            output.append(
+                {
+                    **product,
+                    "score": round(float(row.get("score") or 0.0), 6),
+                    "reason": "lstm_next_item",
+                }
+            )
+            if len(output) >= final_limit:
+                break
+
+        if output:
+            return output
+        return self.recommend_hybrid(customer_id=customer_id, limit=final_limit)
+
+    def recommend_hybrid_lstm(self, customer_id: int, limit: int = 20) -> List[Dict]:
+        final_limit = max(1, limit)
+        lstm_ranked = self.recommend_lstm(customer_id=customer_id, limit=max(final_limit * 3, 30))
+        base_ranked = self.recommend_hybrid(customer_id=customer_id, limit=max(final_limit * 3, 30))
+
+        score_map: Dict[int, Dict] = {}
+        for idx, item in enumerate(lstm_ranked, start=1):
+            item_id = item.get("item_id")
+            if item_id is None:
+                continue
+            pid = int(item_id)
+            score = 0.7 / (30.0 + idx)
+            score_map[pid] = {
+                "product": item,
+                "score": score_map.get(pid, {}).get("score", 0.0) + score,
+            }
+
+        for idx, item in enumerate(base_ranked, start=1):
+            item_id = item.get("item_id")
+            if item_id is None:
+                continue
+            pid = int(item_id)
+            score = 0.3 / (30.0 + idx)
+            existing = score_map.get(pid)
+            if existing:
+                existing["score"] = float(existing["score"]) + score
+            else:
+                score_map[pid] = {"product": item, "score": score}
+
+        merged = sorted(score_map.values(), key=lambda x: float(x["score"]), reverse=True)
+        output: List[Dict] = []
+        for row in merged:
+            product = dict(row["product"])
+            product["score"] = round(float(row["score"]), 6)
+            product["reason"] = "hybrid_lstm_activity_graph"
+            output.append(product)
+            if len(output) >= final_limit:
+                break
+        return output
+
     def recommend_from_graph(self, product_id: int, mode: str = "same_category", limit: int = 10):
         kb_url = getattr(settings, "KB_SERVICE_URL", "http://kb-service:8010")
         graph = KBGraphRecommender(kb_url)
@@ -385,6 +463,17 @@ class KBGraphRecommender:
     def __init__(self, kb_service_url: str):
         self.kb_service_url = kb_service_url.rstrip("/")
 
+    @staticmethod
+    def _build_filter_query(price_range: str = "", gender: str = "") -> str:
+        params = []
+        if str(price_range or "").strip():
+            params.append(("price_range", str(price_range).strip().lower()))
+        if str(gender or "").strip():
+            params.append(("gender", str(gender).strip().lower()))
+        if not params:
+            return ""
+        return "&" + urllib.parse.urlencode(params)
+
     def _safe_recommend_get(self, url: str, timeout: int = 10):
         try:
             req = urllib.request.Request(url, headers={"Accept": "application/json"})
@@ -395,18 +484,22 @@ class KBGraphRecommender:
         except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError, TimeoutError, ValueError):
             return []
 
-    def recommend_same_category(self, product_id: int, limit: int = 10):
-        url = f"{self.kb_service_url}/api/kb/recommend/?product_id={product_id}&mode=same_category&limit={limit}"
+    def recommend_same_category(self, product_id: int, limit: int = 10, price_range: str = "", gender: str = ""):
+        filters = self._build_filter_query(price_range=price_range, gender=gender)
+        url = f"{self.kb_service_url}/api/kb/recommend/?product_id={product_id}&mode=same_category&limit={limit}{filters}"
         return self._safe_recommend_get(url)
 
-    def recommend_also_bought(self, product_id: int, limit: int = 10):
-        url = f"{self.kb_service_url}/api/kb/recommend/?product_id={product_id}&mode=also_bought&limit={limit}"
+    def recommend_also_bought(self, product_id: int, limit: int = 10, price_range: str = "", gender: str = ""):
+        filters = self._build_filter_query(price_range=price_range, gender=gender)
+        url = f"{self.kb_service_url}/api/kb/recommend/?product_id={product_id}&mode=also_bought&limit={limit}{filters}"
         return self._safe_recommend_get(url)
 
-    def recommend_personalized(self, customer_id: int, limit: int = 10):
-        url = f"{self.kb_service_url}/api/kb/recommend/?customer_id={customer_id}&mode=personalized&limit={limit}"
+    def recommend_personalized(self, customer_id: int, limit: int = 10, price_range: str = "", gender: str = ""):
+        filters = self._build_filter_query(price_range=price_range, gender=gender)
+        url = f"{self.kb_service_url}/api/kb/recommend/?customer_id={customer_id}&mode=personalized&limit={limit}{filters}"
         return self._safe_recommend_get(url)
 
-    def recommend_top_products(self, limit: int = 10):
-        url = f"{self.kb_service_url}/api/kb/recommend/top/?limit={limit}"
+    def recommend_top_products(self, limit: int = 10, price_range: str = "", gender: str = ""):
+        filters = self._build_filter_query(price_range=price_range, gender=gender)
+        url = f"{self.kb_service_url}/api/kb/recommend/top/?limit={limit}{filters}"
         return self._safe_recommend_get(url)

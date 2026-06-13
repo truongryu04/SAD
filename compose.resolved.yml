@@ -1,0 +1,394 @@
+﻿name: sa-ad_emcomerce_ai
+services:
+  ai-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\ai-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_started
+        required: true
+      product-service:
+        condition: service_started
+        required: true
+      user-service:
+        condition: service_started
+        required: true
+    environment:
+      AI_SERVICE_PORT: "8005"
+      ALLOWED_HOSTS: '*'
+      CUSTOMER_SERVICE_URL: http://user-service:8007
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_NAME: ai_service_db
+      DB_POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_PORT: "5432"
+      DB_POSTGRES_USER: postgres
+      KB_SERVICE_URL: http://kb-service:8010
+      PRODUCT_SERVICE_URL: http://product-service:8003
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8005
+        published: "8005"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\ai-service
+        target: /app
+        bind:
+          create_host_path: true
+  api-gateway:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\api-gateway
+      dockerfile: Dockerfile
+    depends_on:
+      ai-service:
+        condition: service_started
+        required: true
+      kb-service:
+        condition: service_started
+        required: true
+      order-service:
+        condition: service_started
+        required: true
+      payment-service:
+        condition: service_started
+        required: true
+      shipping-service:
+        condition: service_started
+        required: true
+      user-service:
+        condition: service_started
+        required: true
+    environment:
+      AI_SERVICE_URL: http://ai-service:8005
+      ALLOWED_HOSTS: '*'
+      API_GATEWAY_PORT: "8000"
+      CUSTOMER_SERVICE_URL: http://user-service:8007
+      KB_SERVICE_URL: http://kb-service:8010
+      ORDER_SERVICE_URL: http://order-service:8006
+      PAYMENT_SERVICE_URL: http://payment-service:8008
+      PRODUCT_SERVICE_URL: http://product-service:8003
+      REACT_APP_CLOUD_NAME_CLOUDINARY: dfc04rtup
+      SHIPPING_SERVICE_URL: http://shipping-service:8009
+      STAFF_SERVICE_URL: http://user-service:8007
+      USER_SERVICE_URL: http://user-service:8007
+      VIEWED_EVENT_WINDOW_SECONDS: "300"
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8000
+        published: "8000"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\api-gateway
+        target: /app
+        bind:
+          create_host_path: true
+  kb-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\kb-service
+      dockerfile: Dockerfile
+    depends_on:
+      neo4j:
+        condition: service_healthy
+        required: true
+      postgres:
+        condition: service_healthy
+        required: true
+      product-service:
+        condition: service_started
+        required: true
+    environment:
+      ALLOWED_HOSTS: '*'
+      CUSTOMER_SERVICE_URL: http://user-service:8007
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      NEO4J_PASSWORD: "12345678"
+      NEO4J_URI: bolt://neo4j:7687
+      NEO4J_USER: neo4j
+      ORDER_SERVICE_URL: http://order-service:8006
+      POSTGRES_DB: kb_service_db
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_USER: postgres
+      PRODUCT_SERVICE_URL: http://product-service:8003
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8010
+        published: "8010"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\kb-service
+        target: /app
+        bind:
+          create_host_path: true
+  mysql:
+    environment:
+      MYSQL_DATABASE: user_service_db
+      MYSQL_ROOT_PASSWORD: "123456"
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - 127.0.0.1
+        - -uroot
+        - -p123456
+      timeout: 5s
+      interval: 5s
+      retries: 20
+    image: mysql:8.4
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 3306
+        published: "3308"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: mysql_data
+        target: /var/lib/mysql
+        volume: {}
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\docker\mysql\init
+        target: /docker-entrypoint-initdb.d
+        bind:
+          create_host_path: true
+  neo4j:
+    container_name: neo4j
+    environment:
+      NEO4J_AUTH: neo4j/12345678
+    healthcheck:
+      test:
+        - CMD
+        - cypher-shell
+        - -u
+        - neo4j
+        - -p
+        - "12345678"
+        - MATCH (n) RETURN count(n)
+      timeout: 10s
+      interval: 10s
+      retries: 10
+    image: neo4j:5
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 7474
+        published: "7474"
+        protocol: tcp
+      - mode: ingress
+        target: 7687
+        published: "7687"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: neo4j_data
+        target: /data
+        volume: {}
+  order-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\order-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+        required: true
+      user-service:
+        condition: service_started
+        required: true
+    environment:
+      ALLOWED_HOSTS: '*'
+      CUSTOMER_SERVICE_URL: http://user-service:8007
+      DB_ENGINE: django.db.backends.mysql
+      DB_MYSQL_HOST: mysql
+      DB_MYSQL_NAME: order_service_db
+      DB_MYSQL_PASSWORD: "123456"
+      DB_MYSQL_PORT: "3306"
+      DB_MYSQL_USER: root
+      PAYMENT_SERVICE_URL: http://payment-service:8008
+      SHIPPING_SERVICE_URL: http://shipping-service:8009
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8006
+        published: "8006"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\order-service
+        target: /app
+        bind:
+          create_host_path: true
+  payment-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\payment-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: true
+    environment:
+      ALLOWED_HOSTS: '*'
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      PAYMENT_SERVICE_PORT: "8008"
+      PAYMENT_SUCCESS_RATE: "0.9"
+      POSTGRES_DB: payment_service_db
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_USER: postgres
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8008
+        published: "8008"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\payment-service
+        target: /app
+        bind:
+          create_host_path: true
+  postgres:
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_USER: postgres
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U postgres -d postgres
+      timeout: 5s
+      interval: 5s
+      retries: 20
+    image: pgvector/pgvector:pg16
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5432
+        published: "5433"
+        protocol: tcp
+    volumes:
+      - type: volume
+        source: postgres_data
+        target: /var/lib/postgresql/data
+        volume: {}
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\docker\postgres\init
+        target: /docker-entrypoint-initdb.d
+        bind:
+          create_host_path: true
+  product-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\product-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: true
+    environment:
+      ALLOWED_HOSTS: '*'
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      POSTGRES_DB: product_service_db
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_USER: postgres
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8003
+        published: "8003"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\product-service
+        target: /app
+        bind:
+          create_host_path: true
+  shipping-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\shipping-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: true
+    environment:
+      ALLOWED_HOSTS: '*'
+      DB_ENGINE: django.db.backends.postgresql
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+      POSTGRES_DB: shipping_service_db
+      POSTGRES_PASSWORD: "123456"
+      POSTGRES_USER: postgres
+      SHIPPING_SERVICE_PORT: "8009"
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8009
+        published: "8009"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\shipping-service
+        target: /app
+        bind:
+          create_host_path: true
+  user-service:
+    build:
+      context: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\user-service
+      dockerfile: Dockerfile
+    depends_on:
+      mysql:
+        condition: service_healthy
+        required: true
+    environment:
+      ALLOWED_HOSTS: '*'
+      DB_ENGINE: django.db.backends.mysql
+      DB_MYSQL_HOST: mysql
+      DB_MYSQL_NAME: user_service_db
+      DB_MYSQL_PASSWORD: "123456"
+      DB_MYSQL_PORT: "3306"
+      DB_MYSQL_USER: root
+      KB_SERVICE_URL: http://kb-service:8010
+      PRODUCT_SERVICE_URL: http://product-service:8003
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 8007
+        published: "8007"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: D:\Doc\SA&D\kttkpm\SA-AD_EMCOMERCE_AI\user-service
+        target: /app
+        bind:
+          create_host_path: true
+networks:
+  default:
+    name: sa-ad_emcomerce_ai_default
+volumes:
+  mysql_data:
+    name: sa-ad_emcomerce_ai_mysql_data
+  neo4j_data:
+    name: sa-ad_emcomerce_ai_neo4j_data
+  postgres_data:
+    name: sa-ad_emcomerce_ai_postgres_data

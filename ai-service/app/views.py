@@ -12,6 +12,19 @@ from .chatbot import EcomRAGChatbot
 from .recommender import ProductRecommenderService
 
 
+CHAT_ENGINE_NAME = "rag-kb"
+
+
+def _friendly_chat_error() -> JsonResponse:
+    return JsonResponse(
+        {
+            "error": "He thong AI dang tam thoi qua tai. Ban vui long thu lai sau trong it phut.",
+            "hint": "Ban co the thu cau hoi gon hon hoac giam top_k de phan hoi nhanh hon.",
+        },
+        status=503,
+    )
+
+
 def _parse_json_body(request):
     raw_body = request.body or b"{}"
     if isinstance(raw_body, str):
@@ -122,8 +135,6 @@ class ProductRecommendationView(View):
         recommender = ProductRecommenderService(
             customer_service_url=settings.CUSTOMER_SERVICE_URL,
             product_service_url=settings.PRODUCT_SERVICE_URL,
-            laptop_service_url=settings.LAPTOP_SERVICE_URL,
-            mobile_service_url=settings.MOBILE_SERVICE_URL,
         )
 
         try:
@@ -133,8 +144,12 @@ class ProductRecommendationView(View):
                 recommendations = recommender.recommend_graph(customer_id=customer_id, limit=limit)
             elif mode == "hybrid":
                 recommendations = recommender.recommend_hybrid(customer_id=customer_id, limit=limit)
+            elif mode == "lstm":
+                recommendations = recommender.recommend_lstm(customer_id=customer_id, limit=limit)
+            elif mode == "hybrid_lstm":
+                recommendations = recommender.recommend_hybrid_lstm(customer_id=customer_id, limit=limit)
             else:
-                return JsonResponse({"error": "mode must be one of: hybrid, activity, graph."}, status=400)
+                return JsonResponse({"error": "mode must be one of: hybrid, activity, graph, lstm, hybrid_lstm."}, status=400)
         except Exception as ex:
             return JsonResponse({"error": f"Failed to generate recommendations: {ex}"}, status=502)
 
@@ -158,8 +173,6 @@ class RecommendationFromGraphView(View):
         recommender = ProductRecommenderService(
             customer_service_url=settings.CUSTOMER_SERVICE_URL,
             product_service_url=settings.PRODUCT_SERVICE_URL,
-            laptop_service_url=settings.LAPTOP_SERVICE_URL,
-            mobile_service_url=settings.MOBILE_SERVICE_URL,
         )
         data = recommender.recommend_from_graph(product_id, mode, limit)
         return JsonResponse({"recommendations": data})
@@ -186,21 +199,25 @@ class NovaChatbotView(View):
             return JsonResponse({"error": "top_k must be > 0."}, status=400)
         top_k = min(top_k, 15)
 
+        # Chat thường chỉ dùng vector retrieval từ catalog, không trộn graph.
         bot = EcomRAGChatbot(
             product_service_url=settings.PRODUCT_SERVICE_URL,
-            ollama_base_url=settings.OLLAMA_BASE_URL,
-            ollama_model=settings.OLLAMA_MODEL,
+            kb_service_url=getattr(settings, "KB_SERVICE_URL", ""),
         )
 
         try:
-            result = bot.chat(question, top_k=top_k)
-        except Exception as ex:
-            return JsonResponse({"error": f"Chatbot failed: {ex}"}, status=502)
+            result = bot.chat(
+                question,
+                top_k=top_k,
+                rag_mode="vector_only",
+            )
+        except Exception:
+            return _friendly_chat_error()
 
         obj = AIRequest.objects.create(
             prompt=question,
             response=result.get("answer", ""),
-            model_name=settings.OLLAMA_MODEL,
+            model_name=CHAT_ENGINE_NAME,
             status="completed",
         )
 
@@ -208,9 +225,101 @@ class NovaChatbotView(View):
             {
                 "message": "Chat response generated.",
                 "request_id": obj.id,
-                "model": settings.OLLAMA_MODEL,
+                "model": CHAT_ENGINE_NAME,
                 "answer": result.get("answer", ""),
                 "sources": result.get("sources", []),
                 "context_count": result.get("context_count", 0),
+                "vector_context_count": result.get("vector_context_count", 0),
+                "graph_context_count": result.get("graph_context_count", 0),
+                "rag_mode": result.get("rag_mode", "vector_only"),
+            }
+        )
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class GraphRAGChatbotView(View):
+    def post(self, request):
+        body, error = _parse_json_body(request)
+        if error:
+            return error
+
+        question = (body.get("question") or "").strip()
+        if not question:
+            return JsonResponse({"error": "question is required."}, status=400)
+
+        top_k_raw = body.get("top_k", 8)
+        try:
+            top_k = int(top_k_raw)
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "top_k must be an integer."}, status=400)
+
+        if top_k <= 0:
+            return JsonResponse({"error": "top_k must be > 0."}, status=400)
+        top_k = min(top_k, 15)
+
+        customer_id = body.get("customer_id")
+        if customer_id in ("", None):
+            customer_id = None
+        else:
+            try:
+                customer_id = int(customer_id)
+            except (TypeError, ValueError):
+                return JsonResponse({"error": "customer_id must be an integer."}, status=400)
+
+        product_id = body.get("product_id")
+        if product_id in ("", None):
+            product_id = None
+        else:
+            try:
+                product_id = int(product_id)
+            except (TypeError, ValueError):
+                return JsonResponse({"error": "product_id must be an integer."}, status=400)
+
+        rag_mode = str(body.get("rag_mode") or "graph_hybrid").strip().lower()
+        if rag_mode not in {"graph_hybrid", "graph_only", "vector_only", "personalized", "product"}:
+            return JsonResponse(
+                {"error": "rag_mode must be one of: graph_hybrid, graph_only, vector_only, personalized, product."},
+                status=400,
+            )
+
+        price_range = str(body.get("price_range") or "").strip().lower()
+        gender = str(body.get("gender") or "").strip().lower()
+
+        bot = EcomRAGChatbot(
+            product_service_url=settings.PRODUCT_SERVICE_URL,
+            kb_service_url=getattr(settings, "KB_SERVICE_URL", ""),
+        )
+
+        try:
+            result = bot.chat(
+                question,
+                top_k=top_k,
+                customer_id=customer_id,
+                product_id=product_id,
+                rag_mode=rag_mode,
+                price_range=price_range,
+                gender=gender,
+            )
+        except Exception:
+            return _friendly_chat_error()
+
+        obj = AIRequest.objects.create(
+            prompt=question,
+            response=result.get("answer", ""),
+            model_name=CHAT_ENGINE_NAME,
+            status="completed",
+        )
+
+        return JsonResponse(
+            {
+                "message": "Chat response generated.",
+                "request_id": obj.id,
+                "model": CHAT_ENGINE_NAME,
+                "answer": result.get("answer", ""),
+                "sources": result.get("sources", []),
+                "context_count": result.get("context_count", 0),
+                "vector_context_count": result.get("vector_context_count", 0),
+                "graph_context_count": result.get("graph_context_count", 0),
+                "rag_mode": result.get("rag_mode", rag_mode),
             }
         )

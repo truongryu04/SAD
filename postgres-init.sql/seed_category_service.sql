@@ -1,21 +1,28 @@
--- Seed data for category_service_db (PostgreSQL)
--- Run on category_service_db
+-- Seed data for product_service_db categories (requested categories)
+-- Run on product_service_db
 
-TRUNCATE TABLE app_category RESTART IDENTITY;
+-- Keep categories deterministic so other seeds (products/orders) can refer to fixed ids.
+TRUNCATE TABLE app_book RESTART IDENTITY CASCADE;
+TRUNCATE TABLE app_electronics RESTART IDENTITY CASCADE;
+TRUNCATE TABLE app_fashion RESTART IDENTITY CASCADE;
+TRUNCATE TABLE app_product RESTART IDENTITY CASCADE;
+TRUNCATE TABLE app_category RESTART IDENTITY CASCADE;
 
-INSERT INTO app_category (
-    id, name, description, parent_id, status, created_at, updated_at
-)
-VALUES
-    (1, 'Dien thoai', 'Danh muc dien thoai thong minh', NULL, 'ACTIVE', NOW() - INTERVAL '20 days', NOW() - INTERVAL '1 hours'),
-    (2, 'Laptop', 'Danh muc laptop van phong va gaming', NULL, 'ACTIVE', NOW() - INTERVAL '20 days', NOW() - INTERVAL '1 hours'),
-    (3, 'May tinh bang', 'Danh muc tablet hoc tap va giai tri', NULL, 'ACTIVE', NOW() - INTERVAL '18 days', NOW() - INTERVAL '1 hours'),
-    (4, 'Dong ho thong minh', 'Dong ho thong minh theo doi suc khoe', NULL, 'ACTIVE', NOW() - INTERVAL '18 days', NOW() - INTERVAL '1 hours'),
-    (5, 'Phu kien cong nghe', 'Phu kien nhu sac, cap, op lung, chuot', NULL, 'ACTIVE', NOW() - INTERVAL '16 days', NOW() - INTERVAL '1 hours'),
-    (6, 'Apple', 'San pham thuong hieu Apple', 1, 'ACTIVE', NOW() - INTERVAL '14 days', NOW() - INTERVAL '1 hours'),
-    (7, 'Samsung', 'San pham thuong hieu Samsung', 1, 'ACTIVE', NOW() - INTERVAL '14 days', NOW() - INTERVAL '1 hours'),
-    (8, 'Xiaomi', 'San pham thuong hieu Xiaomi', 1, 'ACTIVE', NOW() - INTERVAL '12 days', NOW() - INTERVAL '1 hours'),
-    (9, 'Dell', 'San pham thuong hieu Dell', 2, 'ACTIVE', NOW() - INTERVAL '12 days', NOW() - INTERVAL '1 hours'),
-    (10, 'ASUS', 'San pham thuong hieu ASUS', 2, 'ACTIVE', NOW() - INTERVAL '10 days', NOW() - INTERVAL '1 hours');
+-- Category.product_type must be one of: BOOK | ELECTRONICS | FASHION
+-- Parent-child structure:
+--   Book -> Textbook, Novel
+--   Electronics -> Laptop, Mobile, Home Appliance
+--   Fashion -> Men Clothing, Shoes
+INSERT INTO app_category (id, name, parent_id, product_type) VALUES
+  (1, 'Book', NULL, 'BOOK'),
+  (2, 'Electronics', NULL, 'ELECTRONICS'),
+  (3, 'Fashion', NULL, 'FASHION'),
+  (4, 'Textbook', 1, 'BOOK'),
+  (5, 'Novel', 1, 'BOOK'),
+  (6, 'Laptop', 2, 'ELECTRONICS'),
+  (7, 'Mobile', 2, 'ELECTRONICS'),
+  (8, 'Home Appliance', 2, 'ELECTRONICS'),
+  (9, 'Men Clothing', 3, 'FASHION'),
+  (10, 'Shoes', 3, 'FASHION');
 
-SELECT setval(pg_get_serial_sequence('app_category', 'id'), (SELECT GREATEST(MAX(id), 1) FROM app_category));
+SELECT setval(pg_get_serial_sequence('app_category', 'id'), (SELECT MAX(id) FROM app_category));

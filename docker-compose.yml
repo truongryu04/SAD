@@ -19,7 +19,7 @@ services:
     image: mysql:8.4
     environment:
       MYSQL_ROOT_PASSWORD: "123456"
-      MYSQL_DATABASE: "customer_service_db"
+      MYSQL_DATABASE: "user_service_db"
     ports:
       - "3308:3306"
     volumes:
@@ -48,9 +48,9 @@ services:
       timeout: 5s
       retries: 20
 
-  customer-service:
+  user-service:
     build:
-      context: ./customer-service
+      context: ./user-service
       dockerfile: Dockerfile
     depends_on:
       mysql:
@@ -58,14 +58,17 @@ services:
     environment:
       ALLOWED_HOSTS: "*"
       DB_ENGINE: django.db.backends.mysql
-      DB_MYSQL_NAME: customer_service_db
+      DB_MYSQL_NAME: user_service_db
       DB_MYSQL_USER: root
       DB_MYSQL_PASSWORD: "123456"
       DB_MYSQL_HOST: mysql
       DB_MYSQL_PORT: "3306"
+      PRODUCT_SERVICE_URL: http://product-service:8003
       KB_SERVICE_URL: http://kb-service:8010
+    volumes:
+      - ./user-service:/app
     ports:
-      - "8001:8001"
+      - "8007:8007"
 
   order-service:
     build:
@@ -74,7 +77,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      customer-service:
+      user-service:
         condition: service_started
     environment:
       ALLOWED_HOSTS: "*"
@@ -84,29 +87,13 @@ services:
       DB_MYSQL_PASSWORD: "123456"
       DB_MYSQL_HOST: mysql
       DB_MYSQL_PORT: "3306"
-      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      CUSTOMER_SERVICE_URL: http://user-service:8007
+      PAYMENT_SERVICE_URL: http://payment-service:8008
+      SHIPPING_SERVICE_URL: http://shipping-service:8009
+    volumes:
+      - ./order-service:/app
     ports:
       - "8006:8006"
-
-  staff-service:
-    build:
-      context: ./staff-service
-      dockerfile: Dockerfile
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      ALLOWED_HOSTS: "*"
-      DB_ENGINE: django.db.backends.mysql
-      DB_MYSQL_NAME: staff_service_db
-      DB_MYSQL_USER: root
-      DB_MYSQL_PASSWORD: "123456"
-      DB_MYSQL_HOST: mysql
-      DB_MYSQL_PORT: "3306"
-      PRODUCT_SERVICE_URL: http://product-service:8003
-    ports:
-      - "8002:8002"
-
 
   product-service:
     build:
@@ -115,8 +102,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      attribute-service:
-        condition: service_started
     environment:
       ALLOWED_HOSTS: "*"
       DB_ENGINE: django.db.backends.postgresql
@@ -125,66 +110,53 @@ services:
       POSTGRES_PASSWORD: "123456"
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
-      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
+    volumes:
+      - ./product-service:/app
     ports:
       - "8003:8003"
 
-  category-service:
+  payment-service:
     build:
-      context: ./category-service
-      dockerfile: Dockerfile
-    depends_on:
-      postgres:
-        condition: service_healthy
-      attribute-service:
-        condition: service_started
-    environment:
-      ALLOWED_HOSTS: "*"
-      DB_ENGINE: django.db.backends.postgresql
-      POSTGRES_DB: category_service_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "123456"
-      DB_POSTGRES_HOST: postgres
-      DB_POSTGRES_PORT: "5432"
-      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
-    ports:
-      - "8004:8004"
-
-  attribute-service:
-    build:
-      context: ./attribute-service
+      context: ./payment-service
       dockerfile: Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
     environment:
       ALLOWED_HOSTS: "*"
+      PAYMENT_SERVICE_PORT: "8008"
       DB_ENGINE: django.db.backends.postgresql
-      POSTGRES_DB: attribute_service_db
+      POSTGRES_DB: payment_service_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: "123456"
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
-    ports:
-      - "8007:8007"
-
-  inventory-service:
-    build:
-      context: ./inventory-service
-      dockerfile: Dockerfile
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      ALLOWED_HOSTS: "*"
-      DB_ENGINE: django.db.backends.postgresql
-      POSTGRES_DB: inventory_service_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "123456"
-      DB_POSTGRES_HOST: postgres
-      DB_POSTGRES_PORT: "5432"
+      PAYMENT_SUCCESS_RATE: "0.9"
+    volumes:
+      - ./payment-service:/app
     ports:
       - "8008:8008"
+
+  shipping-service:
+    build:
+      context: ./shipping-service
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ALLOWED_HOSTS: "*"
+      SHIPPING_SERVICE_PORT: "8009"
+      DB_ENGINE: django.db.backends.postgresql
+      POSTGRES_DB: shipping_service_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "123456"
+      DB_POSTGRES_HOST: postgres
+      DB_POSTGRES_PORT: "5432"
+    volumes:
+      - ./shipping-service:/app
+    ports:
+      - "8009:8009"
 
   kb-service:
     build:
@@ -194,12 +166,6 @@ services:
       postgres:
         condition: service_healthy
       product-service:
-        condition: service_started
-      category-service:
-        condition: service_started
-      attribute-service:
-        condition: service_started
-      inventory-service:
         condition: service_started
       neo4j:
         condition: service_healthy
@@ -211,14 +177,13 @@ services:
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
       PRODUCT_SERVICE_URL: http://product-service:8003
-      CATEGORY_SERVICE_URL: http://category-service:8004
-      INVENTORY_SERVICE_URL: http://inventory-service:8008
-      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      CUSTOMER_SERVICE_URL: http://user-service:8007
       ORDER_SERVICE_URL: http://order-service:8006
-      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: "12345678"
+    volumes:
+      - ./kb-service:/app
     ports:
       - "8010:8010"
 
@@ -228,11 +193,8 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - postgres
-      - customer-service
+      - user-service
       - product-service
-      - category-service
-      - attribute-service
-      - inventory-service
     environment:
       ALLOWED_HOSTS: "*"
       AI_SERVICE_PORT: "8005"
@@ -242,13 +204,11 @@ services:
       DB_POSTGRES_PASSWORD: "123456"
       DB_POSTGRES_HOST: postgres
       DB_POSTGRES_PORT: "5432"
-      CUSTOMER_SERVICE_URL: http://customer-service:8001
+      CUSTOMER_SERVICE_URL: http://user-service:8007
       PRODUCT_SERVICE_URL: http://product-service:8003
-      LAPTOP_SERVICE_URL: http://laptop-service:8003
-      MOBILE_SERVICE_URL: http://mobile-service:8004
       KB_SERVICE_URL: http://kb-service:8010
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: gemma3:1b
+    volumes:
+      - ./ai-service:/app
     ports:
       - "8005:8005"
 
@@ -256,26 +216,30 @@ services:
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
+    env_file:
+      - ./.env
     depends_on:
-      - customer-service
-      - staff-service
+      - user-service
       - ai-service
       - order-service
       - kb-service
+      - payment-service
+      - shipping-service
     environment:
       ALLOWED_HOSTS: "*"
       API_GATEWAY_PORT: "8000"
-      CUSTOMER_SERVICE_URL: http://customer-service:8001
-      STAFF_SERVICE_URL: http://staff-service:8002
+      USER_SERVICE_URL: http://user-service:8007
+      CUSTOMER_SERVICE_URL: http://user-service:8007
+      STAFF_SERVICE_URL: http://user-service:8007
       PRODUCT_SERVICE_URL: http://product-service:8003
-      CATEGORY_SERVICE_URL: http://category-service:8004
-      ATTRIBUTE_SERVICE_URL: http://attribute-service:8007
       AI_SERVICE_URL: http://ai-service:8005
       ORDER_SERVICE_URL: http://order-service:8006
       KB_SERVICE_URL: http://kb-service:8010
+      PAYMENT_SERVICE_URL: http://payment-service:8008
+      SHIPPING_SERVICE_URL: http://shipping-service:8009
       VIEWED_EVENT_WINDOW_SECONDS: "300"
-      OLLAMA_BASE_URL: http://host.docker.internal:11434
-      OLLAMA_MODEL: gemma3:1b
+    volumes:
+      - ./api-gateway:/app
     ports:
       - "8000:8000"
 
@@ -285,9 +249,7 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
-      customer-service:
-        condition: service_started
-      staff-service:
+      user-service:
         condition: service_started
       order-service:
         condition: service_started
@@ -308,12 +270,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      category-service:
-        condition: service_started
-      attribute-service:
-        condition: service_started
-      inventory-service:
-        condition: service_started
       product-service:
         condition: service_started
       ai-service:

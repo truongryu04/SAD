@@ -119,17 +119,118 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 API_GATEWAY_PORT = int(os.getenv('API_GATEWAY_PORT', '8000'))
-CUSTOMER_SERVICE_URL = os.getenv('CUSTOMER_SERVICE_URL', 'http://127.0.0.1:8001')
-STAFF_SERVICE_URL = os.getenv('STAFF_SERVICE_URL', 'http://127.0.0.1:8002')
-LAPTOP_SERVICE_URL = os.getenv('LAPTOP_SERVICE_URL', 'http://127.0.0.1:8003')
-MOBILE_SERVICE_URL = os.getenv('MOBILE_SERVICE_URL', 'http://127.0.0.1:8004')
+USER_SERVICE_URL = os.getenv('USER_SERVICE_URL', os.getenv('CUSTOMER_SERVICE_URL', 'http://127.0.0.1:8007'))
+CUSTOMER_SERVICE_URL = os.getenv('CUSTOMER_SERVICE_URL', USER_SERVICE_URL)
 PRODUCT_SERVICE_URL = os.getenv('PRODUCT_SERVICE_URL', 'http://127.0.0.1:8003')
 AI_SERVICE_URL = os.getenv('AI_SERVICE_URL', 'http://127.0.0.1:8005')
 ORDER_SERVICE_URL = os.getenv('ORDER_SERVICE_URL', 'http://127.0.0.1:8006')
-CATEGORY_SERVICE_URL = os.getenv('CATEGORY_SERVICE_URL', 'http://127.0.0.1:8004')
-ATTRIBUTE_SERVICE_URL = os.getenv('ATTRIBUTE_SERVICE_URL', 'http://127.0.0.1:8007')
 KB_SERVICE_URL = os.getenv('KB_SERVICE_URL', 'http://127.0.0.1:8010')
+PAYMENT_SERVICE_URL = os.getenv('PAYMENT_SERVICE_URL', 'http://127.0.0.1:8008')
+SHIPPING_SERVICE_URL = os.getenv('SHIPPING_SERVICE_URL', 'http://127.0.0.1:8009')
 VIEWED_EVENT_WINDOW_SECONDS = int(os.getenv('VIEWED_EVENT_WINDOW_SECONDS', '300'))
+
+SERVICE_ENDPOINTS = [
+    {
+        'service': 'customer',
+        'base_url': CUSTOMER_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/customer/register/', 'target_path': '/customer/register/'},
+            {'gateway_path': '/api/customer/login/', 'target_path': '/customer/login/'},
+            {'gateway_path': '/api/customer/accounts/', 'target_path': '/customer/accounts/'},
+            {'gateway_path': '/api/customer/accounts/{customer_id}/', 'target_path': '/customer/accounts/{customer_id}/'},
+            {'gateway_path': '/api/customer/carts/', 'target_path': '/customer/carts/'},
+            {'gateway_path': '/api/customer/cart-items/', 'target_path': '/customer/carts/items/'},
+            {'gateway_path': '/api/customer/cart-items/{cart_item_id}/', 'target_path': '/customer/carts/items/{cart_item_id}/'},
+            {'gateway_path': '/api/customer/activities/', 'target_path': '/customer/activities/'},
+            {'gateway_path': '/api/customer/ratings/', 'target_path': '/customer/ratings/'},
+            {'gateway_path': '/api/customer/search/', 'target_path': '/customer/search/'},
+        ],
+    },
+    {
+        'service': 'user-service',
+        'base_url': USER_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/staff/register/', 'target_path': '/staff/register/'},
+            {'gateway_path': '/api/staff/login/', 'target_path': '/staff/login/'},
+            {'gateway_path': '/api/staff/permissions/', 'target_path': '/staff/permissions/'},
+            {'gateway_path': '/api/staff/accounts/', 'target_path': '/staff/accounts/'},
+            {'gateway_path': '/api/staff/accounts/{staff_id}/', 'target_path': '/staff/accounts/{staff_id}/'},
+            {'gateway_path': '/api/staff/items/', 'target_path': '/staff/items/'},
+            {'gateway_path': '/api/staff/items/{item_id}/', 'target_path': '/staff/items/{item_id}/'},
+        ],
+    },
+    {
+        'service': 'order',
+        'base_url': ORDER_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/orders/', 'target_path': '/orders/'},
+            {'gateway_path': '/api/orders/checkout/', 'target_path': '/orders/checkout/'},
+        ],
+    },
+    {
+        'service': 'payment',
+        'base_url': PAYMENT_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/payment/pay', 'target_path': '/payment/pay'},
+            {'gateway_path': '/api/payment/status', 'target_path': '/payment/status'},
+            {'gateway_path': '/api/payment/methods/', 'target_path': '/payment/methods/'},
+            {'gateway_path': '/api/payment/methods/{method_id}/', 'target_path': '/payment/methods/{method_id}/'},
+        ],
+    },
+    {
+        'service': 'shipping',
+        'base_url': SHIPPING_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/shipping/create', 'target_path': '/shipping/create'},
+            {'gateway_path': '/api/shipping/status', 'target_path': '/shipping/status'},
+            {'gateway_path': '/api/shipping/methods/', 'target_path': '/shipping/methods/'},
+            {'gateway_path': '/api/shipping/methods/{method_id}/', 'target_path': '/shipping/methods/{method_id}/'},
+        ],
+    },
+    {
+        'service': 'product',
+        'base_url': PRODUCT_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/products/', 'target_path': '/products/'},
+            {'gateway_path': '/api/products/{product_id}/', 'target_path': '/products/{product_id}/'},
+            {'gateway_path': '/api/products/category-schema/{category_id}/', 'target_path': '/api/categories/{category_id}/attributes/'},
+        ],
+    },
+    {
+        'service': 'product-domain',
+        'base_url': PRODUCT_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/categories/', 'target_path': '/api/categories/'},
+            {'gateway_path': '/api/categories/{category_id}/', 'target_path': '/api/categories/{category_id}/'},
+        ],
+    },
+    {
+        'service': 'product-domain',
+        'base_url': PRODUCT_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/attributes/', 'target_path': '/api/attributes/'},
+            {'gateway_path': '/api/category-attributes/', 'target_path': '/api/category-attributes/'},
+            {'gateway_path': '/api/product-attribute-values/', 'target_path': '/api/product-attribute-values/'},
+        ],
+    },
+    {
+        'service': 'ai',
+        'base_url': AI_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/ai/chat/', 'target_path': '/ai/chat/'},
+            {'gateway_path': '/api/ai/recommendations/{customer_id}/', 'target_path': '/ai/recommendations/{customer_id}/'},
+        ],
+    },
+    {
+        'service': 'kb',
+        'base_url': KB_SERVICE_URL,
+        'endpoints': [
+            {'gateway_path': '/api/kb/health/', 'target_path': '/api/kb/health/'},
+            {'gateway_path': '/api/kb/collect/', 'target_path': '/api/kb/collect/'},
+            {'gateway_path': '/api/kb/search/semantic/', 'target_path': '/api/kb/search/semantic/'},
+        ],
+    },
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

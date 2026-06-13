@@ -1,6 +1,8 @@
 import json
+import os
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from django.conf import settings
@@ -58,6 +60,10 @@ def _proxy_request(request, service_name, service_base_url, service_path, timeou
 	headers = {"Accept": "application/json"}
 	if request.content_type:
 		headers["Content-Type"] = request.content_type
+	if request.session.get("is_authenticated"):
+		headers["X-Actor-Role"] = str(request.session.get("role") or "")
+		headers["X-Actor-Id"] = str(request.session.get("user_id") or "")
+		headers["X-Actor-Username"] = str(request.session.get("username") or "")
 
 	data = request.body if request.method in {"POST", "PUT", "PATCH"} else None
 	outbound = urllib.request.Request(
@@ -91,6 +97,112 @@ def _proxy_request(request, service_name, service_base_url, service_path, timeou
 	return HttpResponse(raw_body, status=status_code, content_type=content_type)
 
 
+def _proxy_request_with_query_params(request, service_name, service_base_url, service_path, query_params, timeout=20):
+	query_params = query_params or {}
+	filtered = {k: v for k, v in query_params.items() if v is not None and str(v) != ""}
+	query_string = urllib.parse.urlencode(filtered)
+
+	target_url = _build_target_url(service_base_url, service_path, query_string)
+
+	headers = {"Accept": "application/json"}
+	if request.content_type:
+		headers["Content-Type"] = request.content_type
+	if request.session.get("is_authenticated"):
+		headers["X-Actor-Role"] = str(request.session.get("role") or "")
+		headers["X-Actor-Id"] = str(request.session.get("user_id") or "")
+		headers["X-Actor-Username"] = str(request.session.get("username") or "")
+
+	data = request.body if request.method in {"POST", "PUT", "PATCH"} else None
+	outbound = urllib.request.Request(
+		url=target_url,
+		data=data if data else None,
+		method=request.method,
+		headers=headers,
+	)
+
+	try:
+		with urllib.request.urlopen(outbound, timeout=timeout) as response:
+			raw_body = response.read()
+			status_code = response.getcode()
+			content_type = response.headers.get("Content-Type", "application/json")
+	except urllib.error.HTTPError as exc:
+		raw_body = exc.read()
+		status_code = exc.code
+		content_type = exc.headers.get("Content-Type", "application/json")
+	except urllib.error.URLError as exc:
+		status_code = 502
+		raw_body = json.dumps(
+			{
+				"error": f"Cannot connect to {service_name} service.",
+				"details": str(exc),
+			}
+		).encode("utf-8")
+		content_type = "application/json"
+
+	_log_proxy_call(service_name, request, status_code)
+	return HttpResponse(raw_body, status=status_code, content_type=content_type)
+
+
+def _fetch_all_products_from_service(request, service_base_url, service_path="/products/", page_size=100, timeout=20):
+	base_query = urllib.parse.parse_qsl(request.META.get("QUERY_STRING", ""), keep_blank_values=False)
+	filtered_query = [(k, v) for k, v in base_query if k not in {"page", "limit"} and v not in {None, ""}]
+	filtered_query.append(("limit", str(page_size)))
+
+	def build_path(query_items):
+		query_string = urllib.parse.urlencode(query_items)
+		return _build_target_url(service_base_url, service_path, query_string)
+
+	headers = {"Accept": "application/json"}
+	if request.content_type:
+		headers["Content-Type"] = request.content_type
+	if request.session.get("is_authenticated"):
+		headers["X-Actor-Role"] = str(request.session.get("role") or "")
+		headers["X-Actor-Id"] = str(request.session.get("user_id") or "")
+		headers["X-Actor-Username"] = str(request.session.get("username") or "")
+
+	rows = []
+	seen_urls = set()
+	current_url = build_path(filtered_query)
+	service_name = "product"
+
+	while current_url:
+		outbound = urllib.request.Request(url=current_url, method="GET", headers=headers)
+		try:
+			with urllib.request.urlopen(outbound, timeout=timeout) as response:
+				raw_body = response.read()
+				status_code = response.getcode()
+		except urllib.error.HTTPError as exc:
+			raw_body = exc.read()
+			status_code = exc.code
+		except urllib.error.URLError as exc:
+			return 502, {"error": f"Cannot connect to {service_name} service.", "details": str(exc)}
+
+		if status_code != 200:
+			try:
+				payload = json.loads(raw_body.decode("utf-8") or "{}")
+			except json.JSONDecodeError:
+				payload = {"message": raw_body.decode("utf-8", errors="ignore")}
+			return status_code, payload
+
+		try:
+			payload = json.loads(raw_body.decode("utf-8") or "{}")
+		except json.JSONDecodeError:
+			return 502, {"error": "Invalid JSON from product service."}
+
+		page_rows = payload.get("results") if isinstance(payload, dict) else None
+		if not isinstance(page_rows, list):
+			page_rows = payload if isinstance(payload, list) else []
+		rows.extend(page_rows)
+
+		next_url = payload.get("next") if isinstance(payload, dict) else None
+		if not next_url or next_url in seen_urls:
+			break
+		seen_urls.add(next_url)
+		current_url = next_url
+
+	return 200, {"count": len(rows), "data": rows}
+
+
 def _call_login_service(role, username, password):
 	normalized_role = (role or "").strip().upper()
 	if normalized_role == "CUSTOMER":
@@ -99,22 +211,24 @@ def _call_login_service(role, username, password):
 		path = "/customer/login/"
 		id_key = "customer_id"
 		dashboard_url = "/ui/customer/"
-	elif normalized_role == "STAFF":
-		service_name = "staff"
-		base_url = settings.STAFF_SERVICE_URL
+	elif normalized_role in {"STAFF", "ADMIN"}:
+		service_name = "user-service"
+		base_url = settings.USER_SERVICE_URL
 		path = "/staff/login/"
 		id_key = "staff_id"
-		dashboard_url = "/ui/staff/"
+		dashboard_url = "/ui/admin/" if normalized_role == "ADMIN" else "/ui/staff/"
 	else:
 		return {
 			"ok": False,
 			"status": 400,
-			"data": {"error": "role must be CUSTOMER or STAFF."},
+			"data": {"error": "role must be CUSTOMER, STAFF or ADMIN."},
 			"id_key": None,
 			"dashboard_url": "/",
 		}
 
-	payload = json.dumps({"username": username, "password": password}).encode("utf-8")
+	payload = json.dumps(
+		{"username": username, "password": password, "role": normalized_role}
+	).encode("utf-8")
 	outbound = urllib.request.Request(
 		url=_build_target_url(base_url, path),
 		data=payload,
@@ -161,15 +275,15 @@ def _call_register_service(role, username, password, full_name):
 		service_name = "customer"
 		base_url = settings.CUSTOMER_SERVICE_URL
 		path = "/customer/register/"
-	elif normalized_role == "STAFF":
-		service_name = "staff"
-		base_url = settings.STAFF_SERVICE_URL
+	elif normalized_role in {"STAFF", "ADMIN"}:
+		service_name = "user-service"
+		base_url = settings.USER_SERVICE_URL
 		path = "/staff/register/"
 	else:
 		return {
 			"ok": False,
 			"status": 400,
-			"data": {"error": "role must be CUSTOMER or STAFF."},
+			"data": {"error": "role must be CUSTOMER, STAFF or ADMIN."},
 		}
 
 	payload = json.dumps(
@@ -177,6 +291,7 @@ def _call_register_service(role, username, password, full_name):
 			"username": username,
 			"password": password,
 			"full_name": full_name,
+			"role": normalized_role,
 		}
 	).encode("utf-8")
 	outbound = urllib.request.Request(
@@ -224,7 +339,23 @@ def _save_login_session(request, login_payload, id_key, fallback_role):
 
 
 def _has_role(request, role):
-	return request.session.get("is_authenticated") and request.session.get("role") == role
+	return request.session.get("is_authenticated") and (request.session.get("role") or "").upper() == role
+
+
+def _has_any_role(request, roles):
+	if not request.session.get("is_authenticated"):
+		return False
+	current = (request.session.get("role") or "").upper()
+	return current in {item.upper() for item in roles}
+
+
+def _require_api_roles(request, roles):
+	if _has_any_role(request, roles):
+		return None
+	if not request.session.get("is_authenticated"):
+		return JsonResponse({"error": "Authentication is required."}, status=401)
+	allowed = ", ".join(sorted({item.upper() for item in roles}))
+	return JsonResponse({"error": f"Permission denied. Required role: {allowed}."}, status=403)
 
 
 def _emit_view_activity(customer_service_url, customer_id, product_id):
@@ -290,6 +421,8 @@ class LoginPageView(View):
 	def get(self, request):
 		if _has_role(request, "CUSTOMER"):
 			return redirect("/ui/customer/")
+		if _has_role(request, "ADMIN"):
+			return redirect("/ui/admin/")
 		if _has_role(request, "STAFF"):
 			return redirect("/ui/staff/")
 		info = ""
@@ -306,6 +439,8 @@ class RegisterPageView(View):
 	def get(self, request):
 		if _has_role(request, "CUSTOMER"):
 			return redirect("/ui/customer/")
+		if _has_role(request, "ADMIN"):
+			return redirect("/ui/admin/")
 		if _has_role(request, "STAFF"):
 			return redirect("/ui/staff/")
 		return render(
@@ -420,6 +555,36 @@ class CustomerCartPageView(View):
 		)
 
 
+class CustomerCheckoutPageView(View):
+	def get(self, request):
+		if not _has_role(request, "CUSTOMER"):
+			return redirect("/")
+		return render(
+			request,
+			"app/customer_checkout.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
+class CustomerOrdersPageView(View):
+	def get(self, request):
+		if not _has_role(request, "CUSTOMER"):
+			return redirect("/")
+		return render(
+			request,
+			"app/customer_orders.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+			},
+		)
+
+
 class CustomerProductsPageView(View):
 	def get(self, request):
 		if not _has_role(request, "CUSTOMER"):
@@ -460,7 +625,7 @@ class CustomerProductDetailPageView(View):
 
 class StaffDashboardView(View):
 	def get(self, request):
-		if not _has_role(request, "STAFF"):
+		if not _has_any_role(request, {"STAFF", "ADMIN"}):
 			return redirect("/")
 		return render(
 			request,
@@ -469,13 +634,62 @@ class StaffDashboardView(View):
 				"username": request.session.get("username"),
 				"full_name": request.session.get("full_name"),
 				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
+			},
+		)
+
+
+class AdminDashboardView(View):
+	def get(self, request):
+		if not _has_role(request, "ADMIN"):
+			return redirect("/")
+		return render(
+			request,
+			"app/staff_dashboard.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
+			},
+		)
+
+
+class AdminPaymentMethodsPageView(View):
+	def get(self, request):
+		if not _has_role(request, "ADMIN"):
+			return redirect("/")
+		return render(
+			request,
+			"app/admin_payment_methods.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
+			},
+		)
+
+
+class AdminShippingMethodsPageView(View):
+	def get(self, request):
+		if not _has_role(request, "ADMIN"):
+			return redirect("/")
+		return render(
+			request,
+			"app/admin_shipping_methods.html",
+			{
+				"username": request.session.get("username"),
+				"full_name": request.session.get("full_name"),
+				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
 			},
 		)
 
 
 class StaffProductPageView(View):
 	def get(self, request):
-		if not _has_role(request, "STAFF"):
+		if not _has_any_role(request, {"STAFF", "ADMIN"}):
 			return redirect("/")
 		return render(
 			request,
@@ -484,13 +698,16 @@ class StaffProductPageView(View):
 				"username": request.session.get("username"),
 				"full_name": request.session.get("full_name"),
 				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
+				"cloudinary_cloud_name": os.getenv("REACT_APP_CLOUD_NAME_CLOUDINARY") or os.getenv("CLOUDINARY_CLOUD_NAME") or "",
+				"cloudinary_upload_preset": os.getenv("CLOUDINARY_UPLOAD_PRESET") or "",
 			},
 		)
 
 
 class StaffOrderPageView(View):
 	def get(self, request):
-		if not _has_role(request, "STAFF"):
+		if not _has_any_role(request, {"STAFF", "ADMIN"}):
 			return redirect("/")
 		return render(
 			request,
@@ -499,13 +716,14 @@ class StaffOrderPageView(View):
 				"username": request.session.get("username"),
 				"full_name": request.session.get("full_name"),
 				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
 			},
 		)
 
 
 class StaffCategoryPageView(View):
 	def get(self, request):
-		if not _has_role(request, "STAFF"):
+		if not _has_any_role(request, {"STAFF", "ADMIN"}):
 			return redirect("/")
 		return render(
 			request,
@@ -514,13 +732,14 @@ class StaffCategoryPageView(View):
 				"username": request.session.get("username"),
 				"full_name": request.session.get("full_name"),
 				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
 			},
 		)
 
 
 class StaffCustomerPageView(View):
 	def get(self, request):
-		if not _has_role(request, "STAFF"):
+		if not _has_any_role(request, {"STAFF", "ADMIN"}):
 			return redirect("/")
 		return render(
 			request,
@@ -529,8 +748,15 @@ class StaffCustomerPageView(View):
 				"username": request.session.get("username"),
 				"full_name": request.session.get("full_name"),
 				"user_id": request.session.get("user_id"),
+				"role": request.session.get("role"),
 			},
 		)
+
+
+class ServiceRegistryView(View):
+	def get(self, request):
+		services = getattr(settings, "SERVICE_ENDPOINTS", [])
+		return JsonResponse({"services": services})
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -600,12 +826,24 @@ class CustomerLoginProxyView(View):
 @method_decorator(csrf_exempt, name="dispatch")
 class CustomerAccountProxyView(View):
 	def get(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, "/customer/accounts/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class CustomerAccountDetailProxyView(View):
 	def patch(self, request, customer_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, f"/customer/accounts/{customer_id}/")
+
+	def delete(self, request, customer_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(request, "customer", settings.CUSTOMER_SERVICE_URL, f"/customer/accounts/{customer_id}/")
 
 
@@ -641,61 +879,226 @@ class CustomerCartItemDetailProxyView(View):
 @method_decorator(csrf_exempt, name="dispatch")
 class OrderCheckoutProxyView(View):
 	def post(self, request):
+		forbidden = _require_api_roles(request, {"CUSTOMER"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(request, "order", settings.ORDER_SERVICE_URL, "/orders/checkout/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class OrderProxyView(View):
 	def get(self, request):
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(request, "order", settings.ORDER_SERVICE_URL, "/orders/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class CustomerOrdersProxyView(View):
+	def get(self, request):
+		forbidden = _require_api_roles(request, {"CUSTOMER"})
+		if forbidden:
+			return forbidden
+
+		customer_id = request.session.get("user_id")
+		if not customer_id:
+			return JsonResponse({"error": "Customer session not found."}, status=401)
+
+		# Allow optional order_id lookup, but always constrain to current customer.
+		order_id = request.GET.get("order_id")
+		query = {"customer_id": customer_id}
+		if order_id:
+			query["order_id"] = order_id
+
+		return _proxy_request_with_query_params(
+			request,
+			"order",
+			settings.ORDER_SERVICE_URL,
+			"/orders/",
+			query,
+		)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class PaymentPayProxyView(View):
+	def post(self, request):
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, "/payment/pay")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class PaymentStatusProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, "/payment/status")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class PaymentMethodProxyView(View):
+	def get(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN", "CUSTOMER", "STAFF"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, "/payment/methods/")
+
+	def post(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, "/payment/methods/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class PaymentMethodDetailProxyView(View):
+	def get(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, f"/payment/methods/{method_id}/")
+
+	def put(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, f"/payment/methods/{method_id}/")
+
+	def patch(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, f"/payment/methods/{method_id}/")
+
+	def delete(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "payment", settings.PAYMENT_SERVICE_URL, f"/payment/methods/{method_id}/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ShippingCreateProxyView(View):
+	def post(self, request):
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, "/shipping/create")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ShippingStatusProxyView(View):
+	def get(self, request):
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, "/shipping/status")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ShippingMethodProxyView(View):
+	def get(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN", "CUSTOMER", "STAFF"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, "/shipping/methods/")
+
+	def post(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, "/shipping/methods/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class ShippingMethodDetailProxyView(View):
+	def get(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, f"/shipping/methods/{method_id}/")
+
+	def put(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, f"/shipping/methods/{method_id}/")
+
+	def patch(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, f"/shipping/methods/{method_id}/")
+
+	def delete(self, request, method_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "shipping", settings.SHIPPING_SERVICE_URL, f"/shipping/methods/{method_id}/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class CategoryProxyView(View):
 	def get(self, request):
-		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, "/api/categories/")
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/categories/")
 
 	def post(self, request):
-		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, "/api/categories/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/categories/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class CategoryDetailProxyView(View):
 	def get(self, request, category_id):
-		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/categories/{category_id}/")
 
 	def put(self, request, category_id):
-		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/categories/{category_id}/")
 
 	def patch(self, request, category_id):
-		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/categories/{category_id}/")
 
 	def delete(self, request, category_id):
-		return _proxy_request(request, "category", settings.CATEGORY_SERVICE_URL, f"/api/categories/{category_id}/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/categories/{category_id}/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class ProductProxyView(View):
 	def get(self, request):
-		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/products/")
+		status_code, payload = _fetch_all_products_from_service(request, settings.PRODUCT_SERVICE_URL, "/products/")
+		return JsonResponse(payload, status=status_code)
 
 	def post(self, request):
-		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/products/")
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/products/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class ProductDetailProxyView(View):
 	def get(self, request, product_id):
-		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/products/{product_id}/")
 
 	def put(self, request, product_id):
-		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/products/{product_id}/")
 
 	def patch(self, request, product_id):
-		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/products/{product_id}/")
 
 	def delete(self, request, product_id):
-		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/api/products/{product_id}/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, f"/products/{product_id}/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -707,28 +1110,37 @@ class ProductCategoryAttributesProxyView(View):
 @method_decorator(csrf_exempt, name="dispatch")
 class AttributeProxyView(View):
 	def get(self, request):
-		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/attributes/")
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/attributes/")
 
 	def post(self, request):
-		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/attributes/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/attributes/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class CategoryAttributeProxyView(View):
 	def get(self, request):
-		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/category-attributes/")
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/category-attributes/")
 
 	def post(self, request):
-		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/category-attributes/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/category-attributes/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class ProductAttributeValueProxyView(View):
 	def get(self, request):
-		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/product-attribute-values/")
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/product-attribute-values/")
 
 	def post(self, request):
-		return _proxy_request(request, "attribute", settings.ATTRIBUTE_SERVICE_URL, "/api/product-attribute-values/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "product", settings.PRODUCT_SERVICE_URL, "/api/product-attribute-values/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
@@ -791,74 +1203,114 @@ class AIChatProxyView(View):
 @method_decorator(csrf_exempt, name="dispatch")
 class StaffRegisterProxyView(View):
 	def post(self, request):
-		return _proxy_request(request, "staff", settings.STAFF_SERVICE_URL, "/staff/register/")
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/register/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class StaffLoginProxyView(View):
 	def post(self, request):
-		return _proxy_request(request, "staff", settings.STAFF_SERVICE_URL, "/staff/login/")
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/login/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class StaffItemProxyView(View):
 	def get(self, request):
-		return _proxy_request(request, "staff", settings.STAFF_SERVICE_URL, "/staff/items/")
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/items/")
 
 	def post(self, request):
-		return _proxy_request(request, "staff", settings.STAFF_SERVICE_URL, "/staff/items/")
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/items/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class StaffItemDetailProxyView(View):
 	def get(self, request, item_id):
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(
 			request,
-			"staff",
-			settings.STAFF_SERVICE_URL,
+			"user-service",
+			settings.USER_SERVICE_URL,
 			f"/staff/items/{item_id}/",
 		)
 
 	def put(self, request, item_id):
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(
 			request,
-			"staff",
-			settings.STAFF_SERVICE_URL,
+			"user-service",
+			settings.USER_SERVICE_URL,
 			f"/staff/items/{item_id}/",
 		)
 
 	def patch(self, request, item_id):
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(
 			request,
-			"staff",
-			settings.STAFF_SERVICE_URL,
+			"user-service",
+			settings.USER_SERVICE_URL,
 			f"/staff/items/{item_id}/",
 		)
 
 	def delete(self, request, item_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
 		return _proxy_request(
 			request,
-			"staff",
-			settings.STAFF_SERVICE_URL,
+			"user-service",
+			settings.USER_SERVICE_URL,
 			f"/staff/items/{item_id}/",
 		)
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class LaptopProxyView(View):
-	def get(self, request, laptop_id=None):
-		if laptop_id is None:
-			path = "/laptops/"
-		else:
-			path = f"/laptops/{laptop_id}/"
-		return _proxy_request(request, "laptop", settings.LAPTOP_SERVICE_URL, path)
+class StaffPermissionProxyView(View):
+	def get(self, request):
+		forbidden = _require_api_roles(request, {"STAFF", "ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/permissions/")
 
 
 @method_decorator(csrf_exempt, name="dispatch")
-class MobileProxyView(View):
-	def get(self, request, mobile_id=None):
-		if mobile_id is None:
-			path = "/mobiles/"
-		else:
-			path = f"/mobiles/{mobile_id}/"
-		return _proxy_request(request, "mobile", settings.MOBILE_SERVICE_URL, path)
+class StaffAccountProxyView(View):
+	def get(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/accounts/")
+
+	def post(self, request):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, "/staff/accounts/")
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class StaffAccountDetailProxyView(View):
+	def patch(self, request, staff_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, f"/staff/accounts/{staff_id}/")
+
+	def delete(self, request, staff_id):
+		forbidden = _require_api_roles(request, {"ADMIN"})
+		if forbidden:
+			return forbidden
+		return _proxy_request(request, "user-service", settings.USER_SERVICE_URL, f"/staff/accounts/{staff_id}/")

@@ -60,5 +60,3 @@ USE_I18N = True
 USE_TZ = True
 STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-ATTRIBUTE_SERVICE_URL = os.getenv('ATTRIBUTE_SERVICE_URL', 'http://attribute-service:8007')

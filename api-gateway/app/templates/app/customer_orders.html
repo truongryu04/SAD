@@ -1,0 +1,281 @@
+{% extends "app/base.html" %}
+
+{% block title %}Orders · Ecom Gateway{% endblock %}
+
+{% block header_sub %}{% endblock %}
+
+{% block head %}
+  <style>
+    .z-grid { grid-template-columns: 1fr; }
+    .z-lead { display: none; }
+    .z-brand { display: none; }
+    .z-header { justify-content: center; }
+    .z-nav { width: min(100%, 980px); margin: 0 auto; justify-content: space-between; }
+    .nav-left,
+    .nav-right { display: flex; align-items: center; gap: 8px; }
+    .nav-left { min-width: 0; flex: 1; flex-wrap: wrap; }
+    .nav-right { margin-left: auto; }
+    .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .icon-btn svg { width: 20px; height: 20px; stroke: var(--ink); }
+    .user-menu-wrap { position: relative; }
+    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--panel-shadow); padding: 8px; display: none; z-index: 20; }
+    .user-menu.show { display: grid; gap: 6px; }
+    .user-menu button,
+    .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: var(--danger-bg); min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: var(--danger-fg); cursor: pointer; border-color: #fecdd3; }
+
+    .orders { display: grid; gap: 12px; margin-top: 12px; }
+    .order-card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 12px; }
+    .order-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .order-id { font-weight: 900; }
+    .meta { color: var(--muted); font-size: 12px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; }
+    .badge { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 800; background: #fff; }
+    .badge.ok { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+    .badge.warn { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+    .badge.bad { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { padding: 8px 6px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 14px; }
+    th { color: #475569; font-weight: 800; }
+
+    .summary { display: grid; gap: 8px; margin-top: 10px; }
+    .line { display: flex; justify-content: space-between; gap: 10px; }
+
+    @media (max-width: 980px) {
+      .z-nav { justify-content: flex-start; }
+      .nav-left,
+      .nav-right { width: 100%; }
+      .nav-right { margin-left: 0; justify-content: flex-start; }
+    }
+  </style>
+{% endblock %}
+
+{% block nav %}
+  <div class="nav-left">
+    <a class="nav-link" href="/ui/customer/">Home</a>
+    <a class="nav-link" href="/ui/customer/products/">Products</a>
+    <a class="nav-link" href="/ui/customer/cart/">Cart</a>
+    <a class="nav-link" href="/ui/customer/orders/" aria-current="page">Orders</a>
+    <button class="nav-link" type="button" onclick="openCustomerChatbot('http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}')">Chatbot</button>
+  </div>
+  <div class="nav-right">
+    <div class="icon-actions">
+      <a class="icon-btn" href="/ui/customer/cart/" title="Cart" aria-label="Cart">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="9" cy="20" r="1"></circle>
+          <circle cx="18" cy="20" r="1"></circle>
+          <path d="M3 4h2l2.2 10.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 2-1.6L22 7H7"></path>
+        </svg>
+      </a>
+      <div class="user-menu-wrap" id="userMenuWrap">
+        <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Account" aria-label="Account">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21a8 8 0 1 0-16 0"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
+        <div id="userMenu" class="user-menu">
+          <button type="button" onclick="openProfileEditor()">Edit profile</button>
+          <a href="/ui/logout/">Logout</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block primary %}
+  <h1 class="h1">Purchase history</h1>
+  <p class="sub">Your past orders (fetched from order-service via API Gateway).</p>
+
+  <div id="status" class="status" style="margin-top:12px;"></div>
+  <div id="empty" class="empty" style="display:none; margin-top:12px;">No orders yet. <a href="/ui/customer/products/">Go shopping</a></div>
+  <div id="orders" class="orders"></div>
+{% endblock %}
+
+{% block extra %}
+  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Open chatbot" title="Chat with AI">Chat</button>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const CUSTOMER_ID = Number("{{ user_id|default:'0' }}") || 0;
+
+    function status(message, type) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + (type || 'ok');
+      el.textContent = message;
+      el.style.display = message ? 'block' : 'none';
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function money(value) {
+      const num = Number(value || 0);
+      try {
+        return num.toLocaleString('vi-VN') + ' ₫';
+      } catch {
+        return String(num) + ' ₫';
+      }
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (!Number.isFinite(d.getTime())) return String(value);
+      try {
+        return d.toLocaleString('vi-VN');
+      } catch {
+        return d.toISOString();
+      }
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      const text = await response.text();
+      let data = {};
+      try {
+        data = JSON.parse(text || "{}");
+      } catch {
+        data = { message: text || 'Request failed.' };
+      }
+      if (!response.ok) {
+        throw new Error(data.error || data.detail || data.message || 'Request failed.');
+      }
+      return data;
+    }
+
+    function badgeClassForPayment(statusText) {
+      const v = String(statusText || '').toUpperCase();
+      if (v === 'PAID') return 'ok';
+      if (v === 'FAILED') return 'bad';
+      return 'warn';
+    }
+
+    function badgeClassForOrder(statusText) {
+      const v = String(statusText || '').toUpperCase();
+      if (v === 'CONFIRMED' || v === 'COMPLETED') return 'ok';
+      if (v === 'CANCELLED') return 'bad';
+      return 'warn';
+    }
+
+    function renderOrders(orders) {
+      const wrap = document.getElementById('orders');
+      const empty = document.getElementById('empty');
+
+      if (!Array.isArray(orders) || orders.length === 0) {
+        wrap.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+
+      empty.style.display = 'none';
+      wrap.innerHTML = orders.map((o) => {
+        const items = Array.isArray(o.items) ? o.items : [];
+        const rows = items.map((it) => (
+          '<tr>'
+            + '<td>' + escapeHtml(it.item_name || it.name || 'Unknown') + '</td>'
+            + '<td style="width:70px;">' + Number(it.quantity || 0) + '</td>'
+            + '<td style="width:140px;">' + money(it.line_total || 0) + '</td>'
+          + '</tr>'
+        )).join('');
+
+        return (
+          '<div class="order-card">'
+            + '<div class="order-head">'
+              + '<div>'
+                + '<div class="order-id">Order #' + Number(o.id || 0) + '</div>'
+                + '<div class="meta">' + escapeHtml(formatDate(o.created_at)) + '</div>'
+              + '</div>'
+              + '<div class="badges">'
+                + '<span class="badge ' + badgeClassForPayment(o.payment_status) + '">Payment: ' + escapeHtml(o.payment_status || 'N/A') + '</span>'
+                + '<span class="badge ' + badgeClassForOrder(o.order_status) + '">Order: ' + escapeHtml(o.order_status || 'N/A') + '</span>'
+              + '</div>'
+            + '</div>'
+
+            + '<div class="summary">'
+              + '<div class="line"><span>Shipping</span><strong>' + money(o.shipping_fee || 0) + '</strong></div>'
+              + '<div class="line"><span>Total</span><strong>' + money(o.total_amount || 0) + '</strong></div>'
+            + '</div>'
+
+            + '<div style="margin-top:10px;" class="meta"><strong>Deliver to:</strong> ' + escapeHtml(o.shipping_address || '-') + '</div>'
+
+            + '<div style="overflow:auto;">'
+              + '<table>'
+                + '<thead><tr><th>Item</th><th style="width:70px;">Qty</th><th style="width:140px;">Subtotal</th></tr></thead>'
+                + '<tbody>' + rows + '</tbody>'
+              + '</table>'
+            + '</div>'
+          + '</div>'
+        );
+      }).join('');
+    }
+
+    async function loadOrders() {
+      try {
+        status('Loading orders...', 'ok');
+        const payload = await fetchJson('/api/customer/orders/');
+        const orders = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+        renderOrders(orders);
+        status('', 'ok');
+      } catch (error) {
+        status(error.message, 'error');
+        renderOrders([]);
+      }
+    }
+
+    function toggleUserMenu(event) {
+      if (event) event.stopPropagation();
+      const menu = document.getElementById('userMenu');
+      menu.classList.toggle('show');
+    }
+
+    function closeUserMenu() {
+      const menu = document.getElementById('userMenu');
+      menu.classList.remove('show');
+    }
+
+    async function openProfileEditor() {
+      closeUserMenu();
+      if (!CUSTOMER_ID) {
+        status('Customer ID not found for update.', 'error');
+        return;
+      }
+      const currentName = "{{ full_name|default:username|escapejs }}";
+      const nextName = window.prompt('Nhap ho ten moi:', currentName);
+      if (nextName === null) return;
+      const fullName = nextName.trim();
+      if (!fullName) {
+        status('Full name cannot be empty.', 'error');
+        return;
+      }
+      try {
+        await fetchJson('/api/customer/accounts/' + CUSTOMER_ID + '/', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ full_name: fullName }),
+        });
+        status('Personal information updated.', 'ok');
+      } catch (error) {
+        status(error.message, 'error');
+      }
+    }
+
+    window.toggleUserMenu = toggleUserMenu;
+    window.openProfileEditor = openProfileEditor;
+
+    document.addEventListener('click', () => {
+      const menu = document.getElementById('userMenu');
+      if (menu) menu.classList.remove('show');
+    });
+
+    loadOrders();
+  </script>
+{% endblock %}

@@ -1,15 +1,36 @@
 {% extends "app/base.html" %}
 
-{% block title %}Đăng ký · Ecom Gateway{% endblock %}
+{% block title %}Register · Ecom Gateway{% endblock %}
 
 {% block head %}
     <style>
-        /* Register page: stack Z panels vertically (one column). */
         .z-grid {
             grid-template-columns: 1fr;
+            gap: 14px;
         }
 
-        /* Register page: stack inputs vertically and full-width. */
+        .auth-lead {
+            display: grid;
+            gap: 10px;
+            background: linear-gradient(135deg, #f8fbff 0%, #f1f8f2 100%);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .auth-lead .h1 {
+            margin: 0;
+        }
+
+        .auth-points {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--muted);
+            display: grid;
+            gap: 4px;
+            font-size: 14px;
+        }
+
         .register-form {
             display: grid;
             gap: 10px;
@@ -28,52 +49,66 @@
         .register-form .btn {
             width: 100%;
         }
+
+        .submit-btn {
+            margin-top: 4px;
+        }
+
+        .quick-nav {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 4px;
+        }
     </style>
 {% endblock %}
 
-{% block header_sub %}Tạo tài khoản mới{% endblock %}
+{% block header_sub %}Create a new account{% endblock %}
 
 {% block nav %}
-    <a class="nav-link" href="/">Đăng nhập</a>
+    <a class="nav-link" href="/">Login</a>
 {% endblock %}
 
 {% block lead %}
-    <div class="kv">
-        <span class="badge brand">Bắt đầu</span>
-        <h1 class="h1">Tạo tài khoản</h1>
-        <p class="sub">
-            Đi theo đường đọc dạng “Z”: chọn vai trò, điền thông tin, rồi xác nhận.
-            Sau khi đăng ký thành công, bạn sẽ quay lại trang đăng nhập.
-        </p>
-        <div class="cta">
-            <a class="button soft" href="/">Quay lại đăng nhập</a>
+    <div class="auth-lead">
+        <span class="badge brand">Account Setup</span>
+        <h1 class="h1">Quick Registration</h1>
+        <p class="sub">Create a new account to use the Customer or Staff interface.</p>
+        <ul class="auth-points">
+            <li>Unique username for easy login.</li>
+            <li>Full name will be displayed on the dashboard.</li>
+            <li>After registration, you will be redirected to the Login page.</li>
+        </ul>
+        <div class="quick-nav">
+            <a class="button soft" href="/">Back to login</a>
         </div>
     </div>
 {% endblock %}
 
 {% block primary %}
-    <h2 class="h2">Thông tin đăng ký</h2>
-    <p class="sub">Đăng ký với vai trò KHÁCH HÀNG hoặc NHÂN VIÊN.</p>
+    <h2 class="h2">Registration Information</h2>
+    <p class="sub">Register as Customer or Staff.</p>
 
     <form class="register-form" method="post" action="/ui/register/">
         {% csrf_token %}
 
-        <label for="role">Vai trò</label>
+        <label for="role">Role</label>
         <select id="role" name="role" class="select">
-            <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>Khách hàng</option>
-            <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>Nhân viên</option>
+            <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>Customer</option>
+            <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>Staff</option>
+            <option value="ADMIN" {% if role == "ADMIN" %}selected{% endif %}>Admin</option>
         </select>
 
-        <label for="username">Tên đăng nhập</label>
+        <label for="username">Username</label>
         <input id="username" class="input" name="username" type="text" value="{{ username }}" required>
 
-        <label for="full_name">Họ và tên</label>
+        <label for="full_name">Full name</label>
         <input id="full_name" class="input" name="full_name" type="text" value="{{ full_name }}" required>
 
-        <label for="password">Mật khẩu</label>
+        <label for="password">Password</label>
         <input id="password" class="input" name="password" type="password" required>
 
-        <button class="btn" type="submit">Đăng ký</button>
+        <button class="btn submit-btn" type="submit">Register</button>
     </form>
 
     {% if error %}
@@ -81,17 +116,21 @@
     {% endif %}
 
     <p class="sub" style="margin-top:14px;">
-        Đã có tài khoản? <a href="/" style="font-weight:800; text-decoration:none; color: var(--brand);">Đăng nhập</a>
+        Already have an account?
+        <a href="/" style="font-weight:800; text-decoration:none; color: var(--brand);">Login now</a>
     </p>
 {% endblock %}
 
 {% block secondary %}
     <section class="panel" style="padding:16px;">
-        <h3 style="margin:0; font-size:16px;">Quyền truy cập</h3>
+        <h3 style="margin:0; font-size:16px;">Access Permissions</h3>
         <p class="sub" style="margin:6px 0 0;">
-            <strong>Khách hàng</strong>: xem danh mục, giỏ hàng, gợi ý AI.
+            <strong>Customer</strong>: browse products, cart, AI recommendations.
             <br>
-            <strong>Nhân viên</strong>: thêm/cập nhật sản phẩm và quản lý kho.
+            <strong>Staff</strong>: manage products, categories, orders.
+        </p>
+        <p class="sub" style="margin:6px 0 0; color:var(--muted);">
+            <strong>Note:</strong> Creating an <strong>Admin</strong> account may be restricted. If an admin already exists, only the current admin can create or manage Admin/Staff accounts. Use seed data or admin APIs if needed.
         </p>
     </section>
 {% endblock %}

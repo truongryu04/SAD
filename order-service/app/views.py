@@ -58,6 +58,66 @@ def _call_customer_service(method, path, query=None, payload=None, timeout=20):
         return 502, {'error': 'Cannot connect to customer service', 'details': str(exc)}
 
 
+def _call_payment_service(method, path, query=None, payload=None, timeout=20):
+    base = settings.PAYMENT_SERVICE_URL.rstrip('/')
+    url = f"{base}{path}"
+    if query:
+        url = f"{url}?{urllib.parse.urlencode(query)}"
+
+    headers = {'Accept': 'application/json'}
+    data = None
+    if payload is not None:
+        headers['Content-Type'] = 'application/json'
+        data = json.dumps(payload).encode('utf-8')
+
+    req = urllib.request.Request(url=url, method=method, headers=headers, data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+            try:
+                return resp.getcode(), json.loads(raw.decode('utf-8') or '{}')
+            except json.JSONDecodeError:
+                return resp.getcode(), {'message': raw.decode('utf-8', errors='ignore')}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        try:
+            return exc.code, json.loads(raw.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return exc.code, {'message': raw.decode('utf-8', errors='ignore')}
+    except urllib.error.URLError as exc:
+        return 502, {'error': 'Cannot connect to payment service', 'details': str(exc)}
+
+
+def _call_shipping_service(method, path, query=None, payload=None, timeout=20):
+    base = settings.SHIPPING_SERVICE_URL.rstrip('/')
+    url = f"{base}{path}"
+    if query:
+        url = f"{url}?{urllib.parse.urlencode(query)}"
+
+    headers = {'Accept': 'application/json'}
+    data = None
+    if payload is not None:
+        headers['Content-Type'] = 'application/json'
+        data = json.dumps(payload).encode('utf-8')
+
+    req = urllib.request.Request(url=url, method=method, headers=headers, data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+            try:
+                return resp.getcode(), json.loads(raw.decode('utf-8') or '{}')
+            except json.JSONDecodeError:
+                return resp.getcode(), {'message': raw.decode('utf-8', errors='ignore')}
+    except urllib.error.HTTPError as exc:
+        raw = exc.read()
+        try:
+            return exc.code, json.loads(raw.decode('utf-8') or '{}')
+        except json.JSONDecodeError:
+            return exc.code, {'message': raw.decode('utf-8', errors='ignore')}
+    except urllib.error.URLError as exc:
+        return 502, {'error': 'Cannot connect to shipping service', 'details': str(exc)}
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class CheckoutView(View):
     def post(self, request):
@@ -66,13 +126,60 @@ class CheckoutView(View):
             return error
 
         payment_method = (body.get('payment_method') or Order.PAYMENT_METHOD_COD).strip().upper()
-        if payment_method not in {
+
+        supported_payment_methods = {
             Order.PAYMENT_METHOD_COD,
             Order.PAYMENT_METHOD_CARD,
             Order.PAYMENT_METHOD_VNPAY,
             Order.PAYMENT_METHOD_MOMO,
-        }:
-            return JsonResponse({'error': 'Unsupported payment_method.'}, status=400)
+        }
+
+        # If payment service defines methods, validate against active methods there.
+        pay_methods_status, pay_methods_payload = _call_payment_service('GET', '/payment/methods/', timeout=10)
+        if pay_methods_status is not None and pay_methods_status < 400:
+            rows = pay_methods_payload.get('data') if isinstance(pay_methods_payload, dict) else None
+            if rows is None and isinstance(pay_methods_payload, list):
+                rows = pay_methods_payload
+            if isinstance(rows, list) and rows:
+                active_codes = {
+                    str(m.get('code') or '').strip().upper()
+                    for m in rows
+                    if bool(m.get('is_active'))
+                }
+                if payment_method not in active_codes:
+                    return JsonResponse({'error': 'Unsupported or inactive payment_method.'}, status=400)
+        else:
+            if payment_method not in supported_payment_methods:
+                return JsonResponse({'error': 'Unsupported payment_method.'}, status=400)
+
+        shipping_method_code = (body.get('shipping_method_code') or body.get('shipping_method') or '').strip().upper()
+        shipping_fee = Decimal('0')
+        if shipping_method_code:
+            ship_methods_status, ship_methods_payload = _call_shipping_service('GET', '/shipping/methods/', timeout=10)
+            if ship_methods_status is None or ship_methods_status >= 400:
+                return JsonResponse({'error': 'Cannot load shipping methods.'}, status=502)
+
+            rows = ship_methods_payload.get('data') if isinstance(ship_methods_payload, dict) else None
+            if rows is None and isinstance(ship_methods_payload, list):
+                rows = ship_methods_payload
+
+            # If shipping service has no configured methods yet, allow checkout to proceed
+            # with fee=0 (the UI may send a fallback code like STANDARD).
+            if isinstance(rows, list) and len(rows) == 0:
+                shipping_fee = Decimal('0')
+            else:
+                matched = None
+                if isinstance(rows, list):
+                    for m in rows:
+                        code = str(m.get('code') or '').strip().upper()
+                        if code == shipping_method_code:
+                            matched = m
+                            break
+
+                if not matched or not bool(matched.get('is_active')):
+                    return JsonResponse({'error': 'Unsupported or inactive shipping_method_code.'}, status=400)
+
+                shipping_fee = _to_decimal(matched.get('fee'))
 
         customer_id = body.get('customer_id')
         cart_id = body.get('cart_id')
@@ -91,14 +198,21 @@ class CheckoutView(View):
         if not items:
             return JsonResponse({'error': 'Cart is empty.'}, status=400)
 
+        phone = (body.get('phone') or '').strip()
+        address = (body.get('address') or body.get('shipping_address') or '').strip()
+
         with transaction.atomic():
             order = Order.objects.create(
                 customer_id=int(cart_payload.get('customer_id') or customer_id),
                 cart_id=int(cart_payload.get('id') or cart_id or 0),
+                phone=phone,
+                shipping_address=address,
+                shipping_method_code=shipping_method_code,
+                shipping_fee=shipping_fee,
                 payment_method=payment_method,
-                payment_status=Order.PAYMENT_STATUS_PAID,
-                order_status=Order.ORDER_STATUS_CONFIRMED,
-                total_amount=_to_decimal(cart_payload.get('total')),
+                payment_status=Order.PAYMENT_STATUS_PENDING,
+                order_status=Order.ORDER_STATUS_CREATED,
+                total_amount=_to_decimal(cart_payload.get('total')) + shipping_fee,
             )
 
             for item in items:
@@ -112,26 +226,66 @@ class CheckoutView(View):
                     line_total=_to_decimal(item.get('line_total')),
                 )
 
-        clear_status, clear_payload = _call_customer_service(
+        payment_call_status, payment_payload = _call_payment_service(
             'POST',
-            '/customer/carts/clear/',
-            payload={'cart_id': order.cart_id},
+            '/payment/pay',
+            payload={'order_id': order.id, 'amount': float(order.total_amount)},
         )
+
+        payment_state = (payment_payload.get('status') or '').strip()
+        if payment_call_status < 400 and payment_state == 'Success':
+            order.payment_status = Order.PAYMENT_STATUS_PAID
+            order.order_status = Order.ORDER_STATUS_CONFIRMED
+            order.save(update_fields=['payment_status', 'order_status'])
+        elif payment_call_status < 400 and payment_state == 'Failed':
+            order.payment_status = Order.PAYMENT_STATUS_FAILED
+            order.order_status = Order.ORDER_STATUS_CANCELLED
+            order.save(update_fields=['payment_status', 'order_status'])
+
+        shipping_call_status = None
+        shipping_payload = None
+        if payment_call_status < 400 and payment_state == 'Success' and order.shipping_address:
+            shipping_call_status, shipping_payload = _call_shipping_service(
+                'POST',
+                '/shipping/create',
+                payload={'order_id': order.id, 'address': order.shipping_address},
+            )
+
+        clear_status = None
+        clear_payload = None
+        if payment_call_status < 400 and payment_state == 'Success':
+            clear_status, clear_payload = _call_customer_service(
+                'POST',
+                '/customer/carts/clear/',
+                payload={'cart_id': order.cart_id},
+            )
 
         return JsonResponse(
             {
-                'message': 'Checkout successful.' if clear_status < 400 else 'Checkout successful but cart clear failed.',
+                'message': 'Checkout successful.' if (clear_status is not None and clear_status < 400) else 'Checkout created. Payment/shipping may still be processing.',
                 'order': {
                     'id': order.id,
                     'customer_id': order.customer_id,
                     'cart_id': order.cart_id,
+                    'phone': order.phone,
+                    'shipping_address': order.shipping_address,
+                    'shipping_method_code': order.shipping_method_code,
+                    'shipping_fee': float(order.shipping_fee),
                     'payment_method': order.payment_method,
                     'payment_status': order.payment_status,
                     'order_status': order.order_status,
                     'total_amount': float(order.total_amount),
                     'items_count': len(items),
                 },
-                'cart_cleared': clear_status < 400,
+                'payment': {
+                    'http_status': payment_call_status,
+                    'response': payment_payload,
+                },
+                'shipping': {
+                    'http_status': shipping_call_status,
+                    'response': shipping_payload,
+                },
+                'cart_cleared': (clear_status is not None and clear_status < 400),
                 'cart_clear_response': clear_payload,
             },
             status=201,
@@ -182,6 +336,10 @@ class OrderView(View):
                     'id': order.id,
                     'customer_id': order.customer_id,
                     'cart_id': order.cart_id,
+                    'phone': order.phone,
+                    'shipping_address': order.shipping_address,
+                    'shipping_method_code': order.shipping_method_code,
+                    'shipping_fee': float(order.shipping_fee),
                     'payment_method': order.payment_method,
                     'payment_status': order.payment_status,
                     'order_status': order.order_status,

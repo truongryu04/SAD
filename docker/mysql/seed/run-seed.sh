@@ -30,13 +30,11 @@ wait_table() {
 }
 
 wait_mysql
-wait_table customer_service_db app_customeraccount
-wait_table staff_service_db app_staffaccount
+wait_table user_service_db app_useraccount
 wait_table order_service_db app_order
 
 echo "[mysql-seeder] Running MySQL seed files..."
-mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" < /seeds/seed_customer_service.sql
-mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" < /seeds/seed_staff_service.sql
+mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" < /seeds/seed_user_service.sql
 mysql -h"${MYSQL_HOST}" -P"${MYSQL_PORT}" -u"${MYSQL_USER}" -p"${MYSQL_PASSWORD}" < /seeds/seed_order_service.sql
 
 echo "[mysql-seeder] Seed completed successfully."

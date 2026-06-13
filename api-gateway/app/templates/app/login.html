@@ -1,15 +1,36 @@
 {% extends "app/base.html" %}
 
-{% block title %}Đăng nhập · Ecom Gateway{% endblock %}
+{% block title %}Login · Ecom Gateway{% endblock %}
 
 {% block head %}
   <style>
-    /* Login page: stack Z panels vertically (one column). */
     .z-grid {
       grid-template-columns: 1fr;
+      gap: 14px;
     }
 
-    /* Login page: stack inputs vertically and full-width. */
+    .auth-lead {
+      display: grid;
+      gap: 10px;
+      background: linear-gradient(135deg, #f8fbff 0%, #f1f8f2 100%);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .auth-lead .h1 {
+      margin: 0;
+    }
+
+    .auth-points {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      display: grid;
+      gap: 4px;
+      font-size: 14px;
+    }
+
     .login-form {
       display: grid;
       gap: 10px;
@@ -28,49 +49,63 @@
     .login-form .btn {
       width: 100%;
     }
+
+    .submit-btn {
+      margin-top: 4px;
+    }
+
+    .quick-nav {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+    }
   </style>
 {% endblock %}
 
-{% block header_sub %}Đăng nhập đa vai trò{% endblock %}
+{% block header_sub %}Multi-role login{% endblock %}
 
 {% block nav %}
-  <a class="nav-link" href="/ui/register/">Đăng ký</a>
+  <a class="nav-link" href="/ui/register/">Register</a>
 {% endblock %}
 
 {% block lead %}
-  <div class="kv">
-    <span class="badge brand">Cổng API Ecom Shop</span>
-    <h1 class="h1">Đăng nhập theo vai trò</h1>
-    <p class="sub">
-      Đi theo đường đọc dạng “Z”: bắt đầu từ thương hiệu, chọn vai trò, rồi xác thực.
-      Sau đăng nhập, bạn sẽ được chuyển đến dashboard tương ứng.
-    </p>
-    <div class="cta">
-      <a class="button soft" href="/ui/register/">Tạo tài khoản</a>
+  <div class="auth-lead">
+    <span class="badge brand">Ecom Shop Gateway</span>
+    <h1 class="h1">Account Login</h1>
+    <p class="sub">Log in quickly to access Customer, Staff, or Admin areas.</p>
+    <ul class="auth-points">
+      <li>Select the correct role to be redirected to the appropriate dashboard.</li>
+      <li>Login credentials are authenticated via the API Gateway.</li>
+      <li>If you don’t have an account, switch to the Register page.</li>
+    </ul>
+    <div class="quick-nav">
+      <a class="button soft" href="/ui/register/">Create new account</a>
     </div>
   </div>
 {% endblock %}
 
 {% block primary %}
-  <h2 class="h2">Đăng nhập</h2>
-  <p class="sub">Chọn vai trò rồi nhập thông tin tài khoản.</p>
+  <h2 class="h2">Login</h2>
+  <p class="sub">Enter your credentials to start your session.</p>
 
   <form class="login-form" method="post" action="/ui/login/">
     {% csrf_token %}
 
-    <label for="role">Vai trò</label>
+    <label for="role">Role</label>
     <select id="role" name="role" class="select">
-      <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>Khách hàng</option>
-      <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>Nhân viên</option>
+      <option value="CUSTOMER" {% if role == "CUSTOMER" %}selected{% endif %}>Customer</option>
+      <option value="STAFF" {% if role == "STAFF" %}selected{% endif %}>Staff</option>
+      <option value="ADMIN" {% if role == "ADMIN" %}selected{% endif %}>Admin</option>
     </select>
 
-    <label for="username">Tên đăng nhập</label>
+    <label for="username">Username</label>
     <input id="username" name="username" class="input" type="text" required>
 
-    <label for="password">Mật khẩu</label>
+    <label for="password">Password</label>
     <input id="password" name="password" class="input" type="password" required>
 
-    <button class="btn" type="submit">Đăng nhập</button>
+    <button class="btn submit-btn" type="submit">Login</button>
   </form>
 
   {% if error %}
@@ -82,15 +117,16 @@
   {% endif %}
 
   <p class="sub" style="margin-top:14px;">
-    Chưa có tài khoản? <a href="/ui/register/" style="font-weight:800; text-decoration:none; color: var(--brand);">Tạo tài khoản</a>
+    Don’t have an account?
+    <a href="/ui/register/" style="font-weight:800; text-decoration:none; color: var(--brand);">Register now</a>
   </p>
 {% endblock %}
 
 {% block secondary %}
   <section class="panel" style="padding:16px;">
-    <h3 style="margin:0; font-size:16px;">Gợi ý</h3>
+    <h3 style="margin:0; font-size:16px;">Usage Tips</h3>
     <p class="sub" style="margin:6px 0 0;">
-      Nếu chưa có tài khoản, đăng ký trước rồi quay lại đăng nhập.
+      If you're unsure about your role, log in as a Customer first. Then you can log out and switch to a Staff account if needed.
     </p>
   </section>
 {% endblock %}

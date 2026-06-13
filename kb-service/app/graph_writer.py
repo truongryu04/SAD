@@ -589,7 +589,7 @@ def recommend_also_bought(product_id, limit=10, price_range=None, gender=None):
                WHEN 'ADDED_TO_CART' THEN 3.0
                ELSE 1.0
              END) *
-             exp(-toFloat(duration.inDays(datetime(coalesce(candidate_rel.timestamp, datetime().toString())), datetime()).days) / 180.0) *
+             exp(-toFloat(duration.inDays(datetime(coalesce(candidate_rel.timestamp, toString(datetime()))), datetime()).days) / 180.0) *
              (1.0 + coalesce(candidate_rel.rating, 0.0) / 5.0)
            ) AS score
     ORDER BY score DESC
@@ -611,7 +611,7 @@ def recommend_also_bought(product_id, limit=10, price_range=None, gender=None):
            sum(
              coalesce(seed_item.quantity, 1.0) *
              coalesce(item.quantity, 1.0) *
-             exp(-toFloat(duration.inDays(datetime(coalesce(item.timestamp, o.timestamp, datetime().toString())), datetime()).days) / 180.0)
+             exp(-toFloat(duration.inDays(datetime(coalesce(item.timestamp, o.timestamp, toString(datetime()))), datetime()).days) / 180.0)
            ) AS score
     ORDER BY score DESC
     LIMIT $limit
@@ -684,7 +684,7 @@ def recommend_top_products(limit=10, price_range=None, gender=None):
                WHEN 'ADDED_TO_CART' THEN 3.0
                ELSE 1.0
              END) *
-             exp(-toFloat(duration.inDays(datetime(coalesce(r.timestamp, datetime().toString())), datetime()).days) / 180.0) *
+             exp(-toFloat(duration.inDays(datetime(coalesce(r.timestamp, toString(datetime()))), datetime()).days) / 180.0) *
              (1.0 + coalesce(r.rating, 0.0) / 5.0)
            ) AS score
     ORDER BY score DESC
@@ -709,7 +709,7 @@ def recommend_top_products(limit=10, price_range=None, gender=None):
            p.price_range AS price_range,
            sum(
              coalesce(item.quantity, 1.0) *
-             exp(-toFloat(duration.inDays(datetime(coalesce(item.timestamp, o.timestamp, datetime().toString())), datetime()).days) / 180.0)
+             exp(-toFloat(duration.inDays(datetime(coalesce(item.timestamp, o.timestamp, toString(datetime()))), datetime()).days) / 180.0)
            ) AS score
     ORDER BY score DESC
     LIMIT $limit
@@ -757,7 +757,7 @@ def recommend_personalized(customer_id, limit=10, price_range=None, gender=None)
                              WHEN 'ADDED_TO_CART' THEN 3.0
                              ELSE 1.0
                          END) *
-                         exp(-toFloat(duration.inDays(datetime(coalesce(candidate_rel.timestamp, datetime().toString())), datetime()).days) / 120.0) *
+                         exp(-toFloat(duration.inDays(datetime(coalesce(candidate_rel.timestamp, toString(datetime()))), datetime()).days) / 120.0) *
                          (1.0 + coalesce(candidate_rel.rating, 0.0) / 5.0)
                      ) AS score
         ORDER BY score DESC
@@ -789,7 +789,7 @@ def recommend_personalized(customer_id, limit=10, price_range=None, gender=None)
                      rec.price_range AS price_range,
                      sum(
                          coalesce(s.weight, 2.0) *
-                         exp(-toFloat(duration.inDays(datetime(coalesce(s.timestamp, datetime().toString())), datetime()).days) / 30.0)
+                         exp(-toFloat(duration.inDays(datetime(coalesce(s.timestamp, toString(datetime()))), datetime()).days) / 30.0)
                      ) AS score
         ORDER BY score DESC
         LIMIT $limit
@@ -812,7 +812,7 @@ def recommend_personalized(customer_id, limit=10, price_range=None, gender=None)
                      sum(
                          coalesce(seed_item.quantity, 1.0) *
                          coalesce(item.quantity, 1.0) *
-                         exp(-toFloat(duration.inDays(datetime(coalesce(item.timestamp, o.timestamp, datetime().toString())), datetime()).days) / 120.0)
+                         exp(-toFloat(duration.inDays(datetime(coalesce(item.timestamp, o.timestamp, toString(datetime()))), datetime()).days) / 120.0)
                      ) AS score
         ORDER BY score DESC
         LIMIT $limit
@@ -845,7 +845,7 @@ def recommend_personalized(customer_id, limit=10, price_range=None, gender=None)
                              THEN 2.0
                              ELSE 1.0
                          END *
-                         exp(-toFloat(duration.inDays(datetime(coalesce(seed_rel.timestamp, datetime().toString())), datetime()).days) / 150.0)
+                         exp(-toFloat(duration.inDays(datetime(coalesce(seed_rel.timestamp, toString(datetime()))), datetime()).days) / 150.0)
                      ) AS score
         ORDER BY score DESC
         LIMIT $limit

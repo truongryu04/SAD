@@ -67,8 +67,5 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 PRODUCT_SERVICE_URL = os.getenv("PRODUCT_SERVICE_URL", "http://product-service:8003")
-CATEGORY_SERVICE_URL = os.getenv("CATEGORY_SERVICE_URL", "http://category-service:8004")
-INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://inventory-service:8008")
 CUSTOMER_SERVICE_URL = os.getenv("CUSTOMER_SERVICE_URL", "http://customer-service:8001")
 ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://order-service:8006")
-ATTRIBUTE_SERVICE_URL = os.getenv("ATTRIBUTE_SERVICE_URL", "http://attribute-service:8007")

@@ -1,6 +1,6 @@
 {% extends "app/base.html" %}
 
-{% block title %}Giỏ hàng · Ecom Gateway{% endblock %}
+{% block title %}Cart · Ecom Gateway{% endblock %}
 
 {% block header_sub %}{% endblock %}
 
@@ -16,14 +16,13 @@
     .nav-left { min-width: 0; flex: 1; }
     .nav-right { margin-left: auto; }
     .icon-actions { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-    .icon-btn svg { width: 20px; height: 20px; stroke: #0f172a; }
+    .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+    .icon-btn svg { width: 20px; height: 20px; stroke: var(--ink); }
     .user-menu-wrap { position: relative; }
-    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: #fff; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12); padding: 8px; display: none; z-index: 20; }
+    .user-menu { position: absolute; right: 0; top: 48px; width: 220px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); box-shadow: var(--panel-shadow); padding: 8px; display: none; z-index: 20; }
     .user-menu.show { display: grid; gap: 6px; }
     .user-menu button,
-    .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: #fff; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: #0f172a; cursor: pointer; }
-    .user-menu a { background: #fff1f2; color: #9f1239; border-color: #fecdd3; }
+    .user-menu a { border: 1px solid var(--line); border-radius: 10px; background: var(--danger-bg); min-height: 36px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 700; color: var(--danger-fg); cursor: pointer; border-color: #fecdd3; }
     .cart-actions { display: flex; gap: 8px; align-items: center; }
     .qty-wrap { display: inline-flex; align-items: center; gap: 6px; }
     .qty-value { min-width: 28px; text-align: center; font-weight: 700; }
@@ -35,11 +34,12 @@
   <div class="nav-left">
     <a class="nav-link" href="/ui/customer/">Home</a>
     <a class="nav-link" href="/ui/customer/products/">Products</a>
+    <a class="nav-link" href="/ui/customer/orders/">Orders</a>
     <button class="nav-link" type="button" onclick="openCustomerChatbot('http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}')">Chatbot</button>
   </div>
   <div class="nav-right">
     <div class="icon-actions">
-    <a class="icon-btn" href="/ui/customer/cart/" title="Gio hang" aria-label="Gio hang">
+    <a class="icon-btn" href="/ui/customer/cart/" title="Cart" aria-label="Cart">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="9" cy="20" r="1"></circle>
         <circle cx="18" cy="20" r="1"></circle>
@@ -47,14 +47,14 @@
       </svg>
     </a>
     <div class="user-menu-wrap" id="userMenuWrap">
-      <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Tai khoan" aria-label="Tai khoan">
+      <button id="userMenuBtn" class="icon-btn" type="button" onclick="toggleUserMenu(event)" title="Account" aria-label="Account">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20 21a8 8 0 1 0-16 0"></path>
           <circle cx="12" cy="7" r="4"></circle>
         </svg>
       </button>
       <div id="userMenu" class="user-menu">
-        <button type="button" onclick="openProfileEditor()">Thay doi thong tin ca nhan</button>
+        <button type="button" onclick="openProfileEditor()">Edit profile</button>
         <a href="/ui/logout/">Logout</a>
       </div>
     </div>
@@ -67,23 +67,23 @@
 {% endblock %}
 
 {% block primary %}
-  <h1 class="h1">Giỏ hàng của tôi</h1>
-  <p class="sub">Danh sách sản phẩm đã thêm vào giỏ, bạn có thể đổi số lượng hoặc xoá từng sản phẩm.</p>
+  <h1 class="h1">My Cart</h1>
+  <p class="sub">Products you added to cart. You can update quantity or remove items.</p>
 
   <div id="status" class="status" style="margin-top:12px;"></div>
 
-  <div id="empty" class="empty" style="display:none; margin-top:12px;">Giỏ hàng của bạn đang trống.</div>
+  <div id="empty" class="empty" style="display:none; margin-top:12px;">Your cart is empty.</div>
   <div style="overflow:auto; margin-top:12px;">
     <table id="cart-table" style="display:none; width:100%;">
       <thead>
         <tr>
           <th>#</th>
-          <th>Tên sản phẩm</th>
-          <th>Loại</th>
-          <th>Số lượng</th>
-          <th>Giá</th>
-          <th>Thành tiền</th>
-          <th>Thao tác</th>
+          <th>Product Name</th>
+          <th>Type</th>
+          <th>Quantity</th>
+          <th>Price</th>
+          <th>Subtotal</th>
+          <th>Actions</th>
         </tr>
       </thead>
       <tbody id="cart-body"></tbody>
@@ -91,10 +91,10 @@
   </div>
 
   <div class="summary" style="margin-top:14px;">
-    <div class="line"><span>Tổng số sản phẩm</span><strong id="sum-items">0</strong></div>
-    <div class="line"><span>Tổng tiền</span><strong id="sum-price">0</strong></div>
+    <div class="line"><span>Total Items</span><strong id="sum-items">0</strong></div>
+    <div class="line"><span>Total Amount</span><strong id="sum-price">0</strong></div>
     <div style="margin-top:8px; display:flex; justify-content:flex-end;">
-      <button id="checkout-btn" class="button brand" type="button" onclick="checkoutCart()" style="width:auto;">Thanh toán</button>
+      <button id="checkout-btn" class="button brand" type="button" onclick="checkoutCart()" style="width:auto;">Checkout</button>
     </div>
   </div>
 {% endblock %}
@@ -104,7 +104,7 @@
 {% endblock %}
 
 {% block extra %}
-  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Mo chatbot" title="Chat voi AI">💬</button>
+  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Open chatbot" title="Chat with AI">Chat</button>
 {% endblock %}
 
 {% block scripts %}
@@ -192,7 +192,7 @@
                     '<td>' + money(it.line_total || 0) + '</td>' +
                     '<td>' +
                       '<div class="cart-actions">' +
-                        '<button class="button warn" type="button" style="min-height:34px; width:auto;" onclick="removeItem(' + Number(it.id) + ')">Xoá</button>' +
+                        '<button class="button warn" type="button" style="min-height:34px; width:auto;" onclick="removeItem(' + Number(it.id) + ')">Remove</button>' +
                       '</div>' +
                     '</td>' +
                 '</tr>'
@@ -206,7 +206,7 @@
         async function updateQuantity(cartItemId, quantity) {
           try {
             if (!Number.isInteger(quantity) || quantity <= 0) {
-              throw new Error("Số lượng phải là số nguyên dương.");
+              throw new Error("Quantity must be a positive integer.");
             }
 
             const data = await fetchJson("/api/customer/cart-items/" + cartItemId + "/", {
@@ -215,7 +215,7 @@
               body: JSON.stringify({ quantity }),
             });
             renderCart(data);
-            status("Đã cập nhật số lượng.", "ok");
+            status("Quantity updated.", "ok");
           } catch (error) {
             status(error.message, "error");
           }
@@ -224,7 +224,7 @@
         async function changeQuantity(cartItemId, currentQty, delta) {
           const nextQty = Number(currentQty || 1) + Number(delta || 0);
           if (nextQty <= 0) {
-            status("Số lượng tối thiểu là 1.", "error");
+            status("Minimum quantity is 1.", "error");
             return;
           }
           await updateQuantity(cartItemId, nextQty);
@@ -232,7 +232,7 @@
 
         async function removeItem(cartItemId) {
           try {
-            const confirmed = window.confirm("Bạn có chắc muốn xoá sản phẩm này khỏi giỏ hàng không?");
+            const confirmed = window.confirm("Are you sure you want to remove this product from cart?");
             if (!confirmed) {
               return;
             }
@@ -240,7 +240,7 @@
               method: "DELETE",
             });
             renderCart(data);
-            status("Đã xoá sản phẩm khỏi giỏ.", "ok");
+            status("Product removed from cart.", "ok");
           } catch (error) {
             status(error.message, "error");
           }
@@ -250,31 +250,15 @@
             try {
                 const data = await fetchJson("/api/customer/carts/?customer_id=" + CUSTOMER_ID);
                 renderCart(data);
-                status("Đã tải giỏ hàng.", "ok");
+                status("Cart loaded.", "ok");
             } catch (error) {
                 renderCart({ items: [] });
                 status(error.message, "error");
             }
         }
 
-        async function checkoutCart() {
-          try {
-            setCheckoutDisabled(true);
-            const data = await fetchJson("/api/orders/checkout/", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                customer_id: CUSTOMER_ID,
-                payment_method: "COD",
-              }),
-            });
-            const orderId = data?.order?.id;
-            status("Thanh toán thành công. Mã đơn: #" + (orderId || "N/A"), "ok");
-            await loadCart();
-          } catch (error) {
-            status(error.message, "error");
-            setCheckoutDisabled(false);
-          }
+        function checkoutCart() {
+          window.location.href = "/ui/customer/checkout/";
         }
 
         function toggleUserMenu(event) {
@@ -293,7 +277,7 @@
         async function openProfileEditor() {
           closeUserMenu();
           if (!CUSTOMER_ID) {
-            status("Khong tim thay customer id de cap nhat.", "error");
+            status("Customer ID not found for update.", "error");
             return;
           }
           const currentName = "{{ full_name|default:username|escapejs }}";
@@ -303,7 +287,7 @@
           }
           const fullName = nextName.trim();
           if (!fullName) {
-            status("Ho ten khong duoc de trong.", "error");
+            status("Full name cannot be empty.", "error");
             return;
           }
           try {
@@ -312,7 +296,7 @@
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ full_name: fullName }),
             });
-            status("Da cap nhat thong tin ca nhan.", "ok");
+            status("Personal information updated.", "ok");
           } catch (error) {
             status(error.message, "error");
           }
@@ -330,3 +314,5 @@
         window.addEventListener("load", loadCart);
     </script>
 {% endblock %}
+
+

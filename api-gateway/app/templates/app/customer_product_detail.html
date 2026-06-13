@@ -14,20 +14,22 @@
   .nav-left,
   .nav-right { display: flex; align-items: center; gap: 8px; }
   .nav-right { margin-left: auto; }
-  .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
-  .icon-btn svg { width: 20px; height: 20px; stroke: #0f172a; }
+  .icon-btn { width: 40px; height: 40px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+  .icon-btn svg { width: 20px; height: 20px; stroke: var(--ink); }
 
   .detail-wrap { display: grid; gap: 14px; }
   .detail-main { display: grid; grid-template-columns: minmax(260px, 360px) 1fr; gap: 14px; }
-  .detail-image { border: 1px solid var(--line); border-radius: 14px; background: linear-gradient(120deg, #dbeafe, #ecfeff); min-height: 260px; display: grid; place-items: center; font-size: 86px; }
-  .detail-info { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 14px; display: grid; gap: 10px; }
+  .detail-image { border: 1px solid var(--line); border-radius: 12px; background: linear-gradient(120deg, #f3f7ff, #eef7ee); min-height: 260px; display: grid; place-items: center; font-size: 86px; overflow: hidden; }
+  .detail-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .detail-info { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 14px; display: grid; gap: 10px; }
   .title { font-size: 24px; font-weight: 900; line-height: 1.2; }
   .meta { color: var(--muted); font-size: 13px; }
-  .price { font-size: 26px; color: #0f766e; font-weight: 900; }
-  .desc { color: #0f172a; line-height: 1.45; }
+  .type-pill { display: inline-flex; width: fit-content; align-items: center; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 800; letter-spacing: 0.02em; background: #e0f2fe; color: #075985; }
+  .price { font-size: 26px; color: var(--brand-2); font-weight: 900; }
+  .desc { color: var(--ink); line-height: 1.45; }
   .cta-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
-  .section { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 14px; }
+  .section { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 14px; }
   .section-title { margin: 0 0 10px; font-size: 18px; font-weight: 900; }
   .attr-table { width: 100%; border-collapse: collapse; }
   .attr-table th,
@@ -35,16 +37,17 @@
   .attr-table th { color: #475569; font-weight: 800; }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
-  .p-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; }
-  .p-card:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(15, 23, 42, 0.1); }
-  .p-image { height: 110px; display: grid; place-items: center; background: linear-gradient(120deg, #dbeafe, #f0fdfa); font-size: 34px; }
+  .p-card { border: 1px solid var(--line); border-radius: 12px; background: var(--panel); overflow: hidden; display: grid; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+  .p-card:hover { transform: translateY(-2px); box-shadow: var(--panel-shadow-hover); border-color: var(--line-strong); }
+  .p-image { height: 110px; display: grid; place-items: center; background: linear-gradient(120deg, #f3f7ff, #eef7ee); font-size: 34px; overflow: hidden; }
+  .p-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .p-body { padding: 9px; display: grid; gap: 6px; }
   .p-name { font-weight: 800; min-height: 34px; }
-  .p-price { color: #0f766e; font-weight: 900; }
+  .p-price { color: var(--brand-2); font-weight: 900; }
 
   .toast-wrap { position: fixed; top: 16px; right: 16px; display: grid; gap: 8px; z-index: 999; }
   .toast { min-width: 240px; max-width: 320px; border-radius: 10px; padding: 10px 12px; color: #fff; font-weight: 700; box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18); opacity: 0; transform: translateY(-6px); animation: toastIn 0.25s ease forwards; }
-  .toast.ok { background: #0f766e; }
+  .toast.ok { background: var(--brand); }
   .toast.error { background: #b91c1c; }
   @keyframes toastIn { to { opacity: 1; transform: translateY(0); } }
 
@@ -65,7 +68,7 @@
     <button class="nav-link" type="button" onclick="openCustomerChatbot('http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}')">Chatbot</button>
   </div>
   <div class="nav-right">
-    <a class="icon-btn" href="/ui/customer/cart/" title="Gio hang" aria-label="Gio hang">
+    <a class="icon-btn" href="/ui/customer/cart/" title="Cart" aria-label="Cart">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="9" cy="20" r="1"></circle>
         <circle cx="18" cy="20" r="1"></circle>
@@ -84,17 +87,17 @@
     <div id="detailMain" class="detail-main"></div>
 
     <section class="section">
-      <h3 class="section-title">Thuoc tinh chi tiet</h3>
+      <h3 class="section-title">Detailed Attributes</h3>
       <div id="attributesBox"></div>
     </section>
 
     <section class="section">
-      <h3 class="section-title">San pham tuong tu</h3>
+      <h3 class="section-title">Similar Products</h3>
       <div id="similarGrid" class="grid"></div>
     </section>
 
     <section class="section">
-      <h3 class="section-title">Goi y cho ban</h3>
+      <h3 class="section-title">Recommendations for You</h3>
       <div id="suggestionGrid" class="grid"></div>
     </section>
   </div>
@@ -103,7 +106,7 @@
 {% block secondary %}{% endblock %}
 
 {% block extra %}
-  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Mo chatbot" title="Chat voi AI">💬</button>
+  <button class="chat-fab" type="button" data-chat-url="http://localhost:8005/ai/chat/ui/?customer_id={{ user_id|default:'0' }}" aria-label="Open chatbot" title="Chat with AI">Chat</button>
 {% endblock %}
 
 {% block scripts %}
@@ -133,6 +136,9 @@
   }
 
   async function fetchJson(url, options) {
+    options = options || {};
+    // include credentials so cookies (session/csrf) are sent for same-origin
+    if (!options.credentials) options.credentials = 'same-origin';
     const response = await fetch(url, options);
     const text = await response.text();
     let data = {};
@@ -147,14 +153,31 @@
     return data;
   }
 
-  function toRows(payload) {
+  function getCookie(name) {
+    const parts = document.cookie.split(';').map(s => s.trim());
+    for (let p of parts) {
+      if (p.startsWith(name + '=')) {
+        return decodeURIComponent(p.substring(name.length + 1));
+      }
+    }
+    return null;
+  }
+
+  function rowsFromPayload(payload) {
     if (Array.isArray(payload)) {
       return payload;
     }
     if (payload && Array.isArray(payload.data)) {
       return payload.data;
     }
+    if (payload && Array.isArray(payload.results)) {
+      return payload.results;
+    }
     return [];
+  }
+
+  function toRows(payload) {
+    return rowsFromPayload(payload);
   }
 
   function money(v) {
@@ -171,9 +194,96 @@
       .replaceAll("'", '&#39;');
   }
 
-  function iconByCategory(categoryId) {
-    const n = Number(categoryId || 0);
-    return [2, 9, 10].includes(n) ? '💻' : '📱';
+  function productTypeLabel(productType) {
+    const value = String(productType || '').toUpperCase();
+    if (value === 'BOOK') {
+      return 'Book';
+    }
+    if (value === 'ELECTRONICS') {
+      return 'Electronics';
+    }
+    if (value === 'FASHION') {
+      return 'Fashion';
+    }
+    return 'Product';
+  }
+
+  function productIcon(productType) {
+    const value = String(productType || '').toUpperCase();
+    if (value === 'BOOK') {
+      return 'Book';
+    }
+    if (value === 'ELECTRONICS') {
+      return 'Device';
+    }
+    if (value === 'FASHION') {
+      return 'Fashion';
+    }
+    return 'Product';
+  }
+
+  function productImageUrl(row) {
+    if (!row || typeof row !== 'object') {
+      return '';
+    }
+    const candidates = [
+      row.image_url,
+      row.imageUrl,
+      row.image,
+      row.thumbnail_url,
+      row.thumbnailUrl,
+      row.thumbnail,
+      row.photo_url,
+      row.photoUrl,
+      row.photo,
+    ];
+    const found = candidates.find((v) => typeof v === 'string' && v.trim());
+    return found ? found.trim() : '';
+  }
+
+  function productMediaHtml(product) {
+    const url = productImageUrl(product);
+    const fallback = escapeHtml(productIcon(product && product.product_type));
+    if (!url) {
+      return fallback;
+    }
+    const escapedUrl = escapeHtml(url);
+    const alt = escapeHtml((product && product.name) || 'Product');
+    return '<img src="' + escapedUrl + '" alt="' + alt + '" loading="lazy" onerror="this.remove(); this.parentNode.innerHTML=\'' + fallback.replaceAll("'", "&#39;") + '\';">';
+  }
+
+  function productTypeDetails(product) {
+    const productType = String(product.product_type || '').toUpperCase();
+    if (productType === 'BOOK' && product.book) {
+      return [
+        ['Author', product.book.author],
+        ['Publisher', product.book.publisher],
+        ['Publication Date', product.book.publication_date],
+        ['Language', product.book.language],
+        ['ISBN', product.book.isbn],
+      ];
+    }
+    if (productType === 'ELECTRONICS' && product.electronics) {
+      return [
+        ['Model', product.electronics.model_name],
+        ['Brand', product.electronics.brand],
+        ['Warranty', product.electronics.warranty ? (product.electronics.warranty + ' months') : null],
+        ['Weight', product.electronics.weight ? (product.electronics.weight + ' kg') : null],
+        ['Dimensions', product.electronics.dimensions],
+        ['Color', product.electronics.color],
+      ];
+    }
+    if (productType === 'FASHION' && product.fashion) {
+      return [
+        ['Brand', product.fashion.brand],
+        ['Size', product.fashion.size],
+        ['Color', product.fashion.color],
+        ['Material', product.fashion.material],
+        ['Season', product.fashion.season],
+        ['Gender', product.fashion.gender],
+      ];
+    }
+    return [];
   }
 
   function openProductDetail(productId) {
@@ -185,17 +295,20 @@
 
   function renderMain(product, categoryName) {
     const root = document.getElementById('detailMain');
+    const details = productTypeDetails(product);
+    const detailsText = details.length ? details.map((row) => row[0] + ': ' + (row[1] || 'N/A')).join(' | ') : 'No subtype data available.';
     root.innerHTML =
-      '<div class="detail-image">' + iconByCategory(product.category_id) + '</div>' +
+      '<div class="detail-image">' + productMediaHtml(product) + '</div>' +
       '<div class="detail-info">' +
+        '<div class="type-pill">' + escapeHtml(productTypeLabel(product.product_type)) + '</div>' +
         '<div class="title">' + escapeHtml(product.name || 'Unknown') + '</div>' +
-        '<div class="meta">Brand: ' + escapeHtml(product.brand || 'Unknown') + ' | Category: ' + escapeHtml(categoryName || ('#' + product.category_id)) + '</div>' +
-        '<div class="price">' + money(product.base_price) + '</div>' +
-        '<div class="desc">' + escapeHtml(product.description || 'Chua co mo ta cho san pham nay.') + '</div>' +
-        '<div class="meta">Status: ' + escapeHtml(String(product.status || 'ACTIVE')) + '</div>' +
+        '<div class="meta">Category: ' + escapeHtml(categoryName || ('#' + product.category_id)) + '</div>' +
+        '<div class="meta">' + escapeHtml(detailsText) + '</div>' +
+        '<div class="price">' + money(product.price) + '</div>' +
+        '<div class="desc">' + escapeHtml('Stock: ' + Number(product.stock || 0) + ' | ' + (Number(product.stock || 0) > 0 ? 'Available' : 'Out of stock')) + '</div>' +
         '<div class="cta-row">' +
-          '<button class="button brand" type="button" onclick="addToCart(' + Number(product.id || 0) + ')">Them vao gio hang</button>' +
-          '<a class="button soft" href="/ui/customer/cart/">Xem gio hang</a>' +
+          '<button class="button brand" type="button" onclick="addToCart(' + Number(product.id || 0) + ')">Add to cart</button>' +
+          '<a class="button soft" href="/ui/customer/cart/">View Cart</a>' +
         '</div>' +
       '</div>';
   }
@@ -236,19 +349,19 @@
     });
 
     if (!merged.length) {
-      root.innerHTML = '<div class="empty">Khong co thuoc tinh chi tiet cho san pham nay.</div>';
+      root.innerHTML = '<div class="empty">No detailed attributes for this product.</div>';
       return;
     }
 
     root.innerHTML =
       '<table class="attr-table">' +
-        '<thead><tr><th>Thuoc tinh</th><th>Gia tri</th><th>Yeu cau</th></tr></thead>' +
+        '<thead><tr><th>Attribute</th><th>Value</th><th>Required</th></tr></thead>' +
         '<tbody>' +
           merged.map((a) => (
             '<tr>' +
               '<td>' + escapeHtml(a.name + (a.unit ? ' (' + a.unit + ')' : '')) + '</td>' +
               '<td>' + escapeHtml(String(a.value || 'N/A')) + '</td>' +
-              '<td>' + (a.required ? 'Co' : 'Khong') + '</td>' +
+              '<td>' + (a.required ? 'Yes' : 'No') + '</td>' +
             '</tr>'
           )).join('') +
         '</tbody>' +
@@ -264,11 +377,13 @@
 
     root.innerHTML = rows.map((p) => (
       '<article class="p-card" onclick="openProductDetail(' + Number(p.id || 0) + ')">' +
-        '<div class="p-image">' + iconByCategory(p.category_id) + '</div>' +
+        '<div class="p-image">' + productMediaHtml(p) + '</div>' +
         '<div class="p-body">' +
+          '<div class="meta">' + escapeHtml(productTypeLabel(p.product_type)) + '</div>' +
           '<div class="p-name">' + escapeHtml(p.name || 'Unknown') + '</div>' +
-          '<div class="p-price">' + money(p.base_price) + '</div>' +
-          '<button class="button soft" type="button" onclick="addToCartFromCard(event, ' + Number(p.id || 0) + ')">Them vao gio</button>' +
+          '<div class="meta">' + escapeHtml((p.book && p.book.author) || (p.electronics && p.electronics.brand) || (p.fashion && p.fashion.color) || 'Unknown') + '</div>' +
+          '<div class="p-price">' + money(p.price) + '</div>' +
+          '<button class="button soft" type="button" onclick="addToCartFromCard(event, ' + Number(p.id || 0) + ')">Add to cart</button>' +
         '</div>' +
       '</article>'
     )).join('');
@@ -284,9 +399,10 @@
 
   async function addToCart(productId) {
     try {
+      const csrftoken = getCookie('csrftoken');
       await fetchJson('/api/customer/cart-items/', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
         body: JSON.stringify({
           customer_id: CUSTOMER_ID,
           item_type: 'product',
@@ -294,8 +410,8 @@
           quantity: 1,
         }),
       });
-      status('Da them vao gio hang.', 'ok');
-      showToast('Them vao gio hang thanh cong.', 'ok');
+      status('Added to cart.', 'ok');
+      showToast('Added to cart successfully.', 'ok');
     } catch (error) {
       status(error.message, 'error');
       showToast(error.message, 'error');
@@ -304,7 +420,7 @@
 
   async function loadPage() {
     if (!PRODUCT_ID) {
-      status('Product id khong hop le.', 'error');
+      status('Invalid product ID.', 'error');
       return;
     }
 
@@ -315,9 +431,10 @@
         fetchJson('/api/categories/'),
       ]);
 
-      const product = productPayload && productPayload.data ? productPayload.data : productPayload;
+      const productRows = rowsFromPayload(productPayload);
+      const product = productRows[0] || (productPayload && productPayload.data ? productPayload.data : productPayload);
       if (!product || !product.id) {
-        throw new Error('Khong tim thay san pham.');
+        throw new Error('Product not found.');
       }
       state.product = product;
       state.allProducts = toRows(productsPayload);
@@ -346,7 +463,7 @@
       const similarRows = state.allProducts
         .filter((p) => Number(p.id) !== Number(PRODUCT_ID) && Number(p.category_id) === Number(product.category_id))
         .slice(0, 6);
-      renderProductCards('similarGrid', similarRows, 'Chua co san pham tuong tu.');
+      renderProductCards('similarGrid', similarRows, 'No similar products yet.');
 
       let suggestionRows = [];
       try {
@@ -368,12 +485,12 @@
           .filter((p) => Number(p.id) !== Number(PRODUCT_ID) && Number(p.category_id) !== Number(product.category_id))
           .slice(0, 6);
       }
-      renderProductCards('suggestionGrid', suggestionRows, 'Chua co goi y.');
+      renderProductCards('suggestionGrid', suggestionRows, 'No recommendations yet.');
 
-      status('Da tai chi tiet san pham.', 'ok');
+      status('Product details loaded.', 'ok');
     } catch (error) {
       status(error.message, 'error');
-      document.getElementById('detailMain').innerHTML = '<div class="empty">Khong tai duoc du lieu san pham.</div>';
+      document.getElementById('detailMain').innerHTML = '<div class="empty">Unable to load product data.</div>';
       document.getElementById('attributesBox').innerHTML = '';
       document.getElementById('similarGrid').innerHTML = '';
       document.getElementById('suggestionGrid').innerHTML = '';
@@ -386,3 +503,5 @@
   window.addEventListener('load', loadPage);
 </script>
 {% endblock %}
+
+

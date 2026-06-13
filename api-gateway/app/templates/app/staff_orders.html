@@ -1,59 +1,41 @@
 <!DOCTYPE html>
 {% load static %}
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quản lý đơn hàng</title>
+    <title>Order Management</title>
     <link rel="stylesheet" href="{% static 'app/staff_common.css' %}">
 </head>
 <body>
     <div class="dashboard-shell">
-        <aside id="sidebar" class="sidebar">
-            <div class="brand">
-                <div class="brand-mark">EC</div>
-                <div class="brand-text">
-                    <h1>EMCommerce</h1>
-                    <p>Staff Console</p>
-                </div>
-            </div>
-
-            <p class="menu-label">Điều hướng</p>
-            <ul class="nav-menu">
-                <li><a class="nav-link" href="/ui/staff/">Dashboard</a></li>
-                <li><a class="nav-link" href="/ui/staff/products/">Quản lý sản phẩm</a></li>
-                <li><a class="nav-link" href="/ui/staff/categories/">Quản lý danh mục</a></li>
-                <li><a class="nav-link active" href="/ui/staff/orders/">Quản lý đơn hàng</a></li>
-                <li><a class="nav-link" href="/ui/staff/customers/">Quản lý khách hàng</a></li>
-                <li><a class="nav-link" href="#">Quản lý nhân viên / admin</a></li>
-            </ul>
-        </aside>
+        {% include "app/partials/console_sidebar.html" with active="orders" role=role %}
 
         <main class="main-content">
             <header class="topbar">
                 <div class="left-tools">
-                    <button id="menuToggle" class="menu-toggle" type="button" aria-label="Mở menu">☰</button>
+                    <button id="menuToggle" class="menu-toggle" type="button" aria-label="Open menu">☰</button>
                     <div class="search-box">
-                        <span>🔎</span>
-                        <input id="searchInput" type="text" placeholder="Tìm theo mã đơn, khách hàng hoặc trạng thái...">
+                        <span>🔍</span>
+                        <input id="searchInput" type="text" placeholder="Search by order ID, customer or status...">
                     </div>
                 </div>
 
                 <div class="header-actions">
-                    <button class="icon-btn" type="button" aria-label="Thông báo">🔔<span class="badge">5</span></button>
-                    <button class="icon-btn" type="button" aria-label="Tin nhắn">💬<span class="badge" style="background: var(--primary-dark);">2</span></button>
+                    <button class="icon-btn" type="button" aria-label="Notifications">🔔<span class="badge">5</span></button>
+                    <button class="icon-btn" type="button" aria-label="Messages">💬<span class="badge" style="background: var(--primary-dark);">2</span></button>
 
-                    <div id="profileTrigger" class="profile-wrap" role="button" tabindex="0" aria-label="Mở menu profile">
+                    <div id="profileTrigger" class="profile-wrap" role="button" tabindex="0" aria-label="Open profile menu">
                         <div class="avatar">{{ full_name|default:username|slice:":2"|upper }}</div>
                         <div class="profile-meta">
                             <strong>{{ full_name|default:username }}</strong>
-                            <span>Mã NV: {{ user_id }}</span>
+                            <span>Employee ID: {{ user_id }}</span>
                         </div>
                     </div>
 
-                    <div id="profileMenu" class="profile-menu" aria-label="Menu profile">
+                    <div id="profileMenu" class="profile-menu" aria-label="Profile menu">
                         <button type="button">Profile</button>
-                        <button type="button">Cài đặt</button>
+                        <button type="button">Settings</button>
                         <a href="/ui/logout/" style="color: var(--danger);">Logout</a>
                     </div>
                 </div>
@@ -62,21 +44,21 @@
             <section class="dashboard-body">
                 <div class="hero">
                     <div>
-                        <h2>Quản lý đơn hàng</h2>
-                        <p>Theo dõi trạng thái đơn hàng, thanh toán, tổng tiền và số item theo thời gian thực.</p>
+                        <h2>Order Management</h2>
+                        <p>Track order status, payments, total value, and item count in real-time.</p>
                     </div>
-                    <div class="chip">Đồng bộ tự động</div>
+                    <div class="chip">Auto synced</div>
                 </div>
 
                 <section class="panel">
                     <div class="controls">
-                        <input id="statusFilter" class="field" type="text" placeholder="Lọc trạng thái: pending, paid, shipping...">
+                        <input id="statusFilter" class="field" type="text" placeholder="Filter status: pending, paid, shipping...">
                         <select id="pageSizeSelect" class="select">
-                            <option value="8">8 dòng / trang</option>
-                            <option value="12">12 dòng / trang</option>
-                            <option value="20">20 dòng / trang</option>
+                            <option value="8">8 rows / page</option>
+                            <option value="12">12 rows / page</option>
+                            <option value="20">20 rows / page</option>
                         </select>
-                        <button id="reloadBtn" class="btn" type="button">Tải lại danh sách</button>
+                        <button id="reloadBtn" class="btn" type="button">Reload</button>
                     </div>
                     <div id="statusBox" class="status-box"></div>
                 </section>
@@ -86,20 +68,20 @@
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Mã đơn</th>
-                                    <th>Khách hàng</th>
-                                    <th>Giỏ hàng</th>
-                                    <th>Thanh toán</th>
-                                    <th>Trạng thái</th>
-                                    <th>Tổng tiền</th>
-                                    <th>Số item</th>
+                                    <th>Order ID</th>
+                                    <th>Customer</th>
+                                    <th>Cart</th>
+                                    <th>Payment</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                    <th>Items</th>
                                 </tr>
                             </thead>
                             <tbody id="orderBody"></tbody>
                         </table>
                     </div>
                     <div class="pagination">
-                        <div id="pageInfo">Hiển thị 0 đơn hàng</div>
+                        <div id="pageInfo">Showing 0 orders</div>
                         <div class="pager-btns" id="pagerButtons"></div>
                     </div>
                 </section>
@@ -136,9 +118,7 @@
 
         function money(value) {
             const num = Number(value || 0);
-            if (!Number.isFinite(num)) {
-                return "N/A";
-            }
+            if (!Number.isFinite(num)) return "N/A";
             return num.toLocaleString("vi-VN") + " VND";
         }
 
@@ -148,12 +128,12 @@
             let data = {};
             try {
                 data = JSON.parse(text || "{}");
-            } catch (error) {
-                data = { message: text || "Phản hồi không hợp lệ." };
+            } catch {
+                data = { message: text || "Invalid response." };
             }
 
             if (!response.ok) {
-                throw new Error(data.error || data.message || "Yêu cầu thất bại.");
+                throw new Error(data.error || data.message || "Request failed.");
             }
 
             return data;
@@ -162,9 +142,9 @@
         async function loadOrders() {
             try {
                 const payload = await fetchJson("/api/orders/");
-                state.rows = Array.isArray(payload && payload.data) ? payload.data : [];
+                state.rows = Array.isArray(payload?.data) ? payload.data : [];
                 applyFilters();
-                showStatus("Đã tải danh sách đơn hàng.", "ok");
+                showStatus("Orders loaded successfully.", "ok");
             } catch (error) {
                 showStatus(error.message, "error");
             }
@@ -179,18 +159,18 @@
                 const customerText = String(row.customer_id || "");
                 const orderStatus = String(row.order_status || "").toLowerCase();
 
-                const matchKeyword = !keyword
-                    || idText.includes(keyword)
-                    || customerText.includes(keyword)
-                    || orderStatus.includes(keyword);
+                const matchKeyword = !keyword ||
+                    idText.includes(keyword) ||
+                    customerText.includes(keyword) ||
+                    orderStatus.includes(keyword);
+
                 const matchStatus = !statusKeyword || orderStatus.includes(statusKeyword);
+
                 return matchKeyword && matchStatus;
             });
 
             const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-            if (state.page > pageCount) {
-                state.page = pageCount;
-            }
+            if (state.page > pageCount) state.page = pageCount;
 
             renderOrders();
             renderPagination();
@@ -198,8 +178,8 @@
 
         function renderOrders() {
             if (!state.filtered.length) {
-                orderBody.innerHTML = "<tr><td colspan='7'>Chưa có order phù hợp.</td></tr>";
-                pageInfo.textContent = "Hiển thị 0 đơn hàng";
+                orderBody.innerHTML = "<tr><td colspan='7'>No matching orders found.</td></tr>";
+                pageInfo.textContent = "Showing 0 orders";
                 return;
             }
 
@@ -219,45 +199,47 @@
                 + "</tr>"
             )).join("");
 
-            pageInfo.textContent = "Hiển thị " + (start + 1) + " - " + Math.min(end, state.filtered.length)
-                + " / " + state.filtered.length + " đơn hàng";
+            pageInfo.textContent = "Showing " + (start + 1) + " - " + Math.min(end, state.filtered.length)
+                + " of " + state.filtered.length + " orders";
         }
 
         function renderPagination() {
             const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
             let html = "";
-            html += "<button class='btn' type='button' " + (state.page === 1 ? "disabled" : "") + " onclick='changePage(" + (state.page - 1) + ")'>Trước</button>";
 
-            for (let page = 1; page <= pageCount; page += 1) {
-                const activeClass = page === state.page ? " active" : "";
-                html += "<button class='page-num" + activeClass + "' type='button' onclick='changePage(" + page + ")'>" + page + "</button>";
+            html += "<button class='btn' " + (state.page === 1 ? "disabled" : "") +
+                " onclick='changePage(" + (state.page - 1) + ")'>Prev</button>";
+
+            for (let page = 1; page <= pageCount; page++) {
+                html += "<button class='page-num" + (page === state.page ? " active" : "") +
+                    "' onclick='changePage(" + page + ")'>" + page + "</button>";
             }
 
-            html += "<button class='btn' type='button' " + (state.page === pageCount ? "disabled" : "") + " onclick='changePage(" + (state.page + 1) + ")'>Sau</button>";
+            html += "<button class='btn' " + (state.page === pageCount ? "disabled" : "") +
+                " onclick='changePage(" + (state.page + 1) + ")'>Next</button>";
+
             pagerButtons.innerHTML = html;
         }
 
         function changePage(page) {
             const pageCount = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
-            if (page < 1 || page > pageCount) {
-                return;
-            }
+            if (page < 1 || page > pageCount) return;
             state.page = page;
             renderOrders();
             renderPagination();
         }
 
-        searchInput.addEventListener("input", function () {
+        searchInput.addEventListener("input", () => {
             state.page = 1;
             applyFilters();
         });
 
-        statusFilter.addEventListener("input", function () {
+        statusFilter.addEventListener("input", () => {
             state.page = 1;
             applyFilters();
         });
 
-        pageSizeSelect.addEventListener("change", function () {
+        pageSizeSelect.addEventListener("change", () => {
             state.pageSize = Number(pageSizeSelect.value || 8);
             state.page = 1;
             applyFilters();

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Payment Methods</title>
+    <link rel="stylesheet" href="{% static 'app/staff_common.css' %}">
+</head>
+<body>
+
+<div class="dashboard-shell">
+
+    {% include "app/partials/console_sidebar.html" with active="payment_methods" role=role %}
+
+    <main class="main-content">
+        <header class="topbar">
+            <div class="left-tools">
+                <button id="menuToggle" class="menu-toggle" type="button" aria-label="Open menu">☰</button>
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input id="keywordInput" type="text" placeholder="Search by code or name...">
+                </div>
+            </div>
+
+            <div class="header-actions">
+                <div id="profileTrigger" class="profile-wrap" role="button" tabindex="0" aria-label="Open profile menu">
+                    <div class="avatar">{{ username|slice:":2"|upper }}</div>
+                    <div class="profile-meta">
+                        <strong>{{ full_name|default:username }}</strong>
+                        <span>ID: {{ user_id }}</span>
+                    </div>
+                </div>
+
+                <div id="profileMenu" class="profile-menu" aria-label="Profile menu">
+                    <a href="/ui/logout/" style="color: var(--danger);">Logout</a>
+                </div>
+            </div>
+        </header>
+
+        <section class="dashboard-body">
+            <div class="hero">
+                <div>
+                    <h2>Payment Methods</h2>
+                    <p>Add, edit, delete payment methods available in the system.</p>
+                </div>
+                <button id="addBtn" class="btn btn-primary" type="button">+ Add Method</button>
+            </div>
+
+            <section class="panel">
+                <div class="controls">
+                    <input id="searchInput" class="field" placeholder="Search...">
+                    <button id="reloadBtn" class="btn" type="button">Reload</button>
+                </div>
+                <div id="statusBox" class="status-box"></div>
+            </section>
+
+            <section class="panel">
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Code</th>
+                            <th>Name</th>
+                            <th>Active</th>
+                            <th>Action</th>
+                        </tr>
+                        </thead>
+                        <tbody id="methodTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <div id="pageInfo">Showing 0 methods</div>
+                </div>
+            </section>
+        </section>
+    </main>
+</div>
+
+<div id="sidebarBackdrop" class="sidebar-backdrop"></div>
+
+<div id="methodModal" class="modal">
+    <div class="modal-card">
+        <h3 id="modalTitle">Add Method</h3>
+
+        <form id="methodForm">
+            <div class="form-grid">
+                <input id="fCode" class="field" placeholder="Code (e.g. COD, MOMO)" required>
+                <input id="fName" class="field" placeholder="Name" required>
+                <select id="fActive" class="select full">
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" id="cancelBtn" class="btn">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{% static 'app/staff_common.js' %}"></script>
+<script>
+    initStaffCommonUI();
+
+    const state = {
+        rows: [],
+        filtered: [],
+        editingId: null,
+    };
+
+    const tableBody = document.getElementById("methodTableBody");
+    const statusBox = document.getElementById("statusBox");
+    const pageInfo = document.getElementById("pageInfo");
+    const addBtn = document.getElementById("addBtn");
+    const reloadBtn = document.getElementById("reloadBtn");
+    const searchInput = document.getElementById("searchInput");
+
+    const methodModal = document.getElementById("methodModal");
+    const methodForm = document.getElementById("methodForm");
+    const modalTitle = document.getElementById("modalTitle");
+    const cancelBtn = document.getElementById("cancelBtn");
+    const fCode = document.getElementById("fCode");
+    const fName = document.getElementById("fName");
+    const fActive = document.getElementById("fActive");
+
+    function showStatus(message, type) {
+        statusBox.className = "status-box" + (type ? " " + type : "");
+        statusBox.textContent = message;
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#39;");
+    }
+
+    async function fetchJson(url, options) {
+        const response = await fetch(url, options);
+        const text = await response.text();
+        let data = {};
+        try {
+            data = JSON.parse(text || "{}");
+        } catch {
+            data = { message: text || "Request failed." };
+        }
+
+        if (!response.ok) {
+            throw new Error(data.error || data.detail || data.message || "Request failed.");
+        }
+
+        return data;
+    }
+
+    function normalize(item) {
+        return {
+            id: Number(item.id || 0),
+            code: String(item.code || ""),
+            name: String(item.name || ""),
+            isActive: Boolean(item.is_active),
+        };
+    }
+
+    function openModal(row) {
+        const editing = Boolean(row);
+        state.editingId = editing ? Number(row.id) : null;
+        modalTitle.textContent = editing ? "Edit Method" : "Add Method";
+        fCode.value = editing ? (row.code || "") : "";
+        fName.value = editing ? (row.name || "") : "";
+        fActive.value = editing ? (row.isActive ? "true" : "false") : "true";
+
+        methodModal.classList.add("show");
+        methodModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeModal() {
+        methodModal.classList.remove("show");
+        methodModal.setAttribute("aria-hidden", "true");
+        methodForm.reset();
+        state.editingId = null;
+        fActive.value = "true";
+    }
+
+    function applyFilters() {
+        const keyword = (searchInput.value || "").trim().toLowerCase();
+        state.filtered = state.rows.filter((row) => {
+            if (!keyword) return true;
+            return row.code.toLowerCase().includes(keyword) || row.name.toLowerCase().includes(keyword) || String(row.id).includes(keyword);
+        });
+        render();
+    }
+
+    function render() {
+        if (!state.filtered.length) {
+            tableBody.innerHTML = "<tr><td colspan='5'>No payment methods found.</td></tr>";
+            pageInfo.textContent = "Showing 0 methods";
+            return;
+        }
+
+        tableBody.innerHTML = state.filtered.map((row) => (
+            "<tr>"
+            + "<td>" + Number(row.id) + "</td>"
+            + "<td>" + escapeHtml(row.code) + "</td>"
+            + "<td>" + escapeHtml(row.name) + "</td>"
+            + "<td><span class='tag'>" + (row.isActive ? "Active" : "Inactive") + "</span></td>"
+            + "<td>"
+            + "<button class='btn' type='button' onclick='editRow(" + Number(row.id) + ")'>Edit</button> "
+            + "<button class='btn' type='button' onclick='deleteRow(" + Number(row.id) + ")' style='color: var(--danger);'>Delete</button>"
+            + "</td>"
+            + "</tr>"
+        )).join("");
+
+        pageInfo.textContent = "Showing " + state.filtered.length + " methods";
+    }
+
+    async function loadMethods() {
+        try {
+            const payload = await fetchJson("/api/payment/methods/");
+            const rows = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
+            state.rows = rows.map(normalize);
+            applyFilters();
+            showStatus("Loaded successfully.", "ok");
+        } catch (error) {
+            showStatus(error.message, "error");
+        }
+    }
+
+    window.editRow = function (id) {
+        const row = state.rows.find((r) => Number(r.id) === Number(id));
+        if (!row) return;
+        openModal(row);
+    };
+
+    window.deleteRow = async function (id) {
+        const row = state.rows.find((r) => Number(r.id) === Number(id));
+        if (!row) return;
+        if (!confirm("Delete payment method '" + row.code + "' ?")) return;
+
+        try {
+            await fetchJson("/api/payment/methods/" + Number(id) + "/", { method: "DELETE" });
+            showStatus("Deleted successfully.", "ok");
+            await loadMethods();
+        } catch (error) {
+            showStatus(error.message, "error");
+        }
+    };
+
+    addBtn.addEventListener("click", () => openModal(null));
+    cancelBtn.addEventListener("click", closeModal);
+    reloadBtn.addEventListener("click", loadMethods);
+    searchInput.addEventListener("input", applyFilters);
+
+    methodForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const payload = {
+            code: (fCode.value || "").trim(),
+            name: (fName.value || "").trim(),
+            is_active: fActive.value === "true",
+        };
+
+        try {
+            if (state.editingId) {
+                await fetchJson("/api/payment/methods/" + Number(state.editingId) + "/", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                showStatus("Updated successfully.", "ok");
+            } else {
+                await fetchJson("/api/payment/methods/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                showStatus("Created successfully.", "ok");
+            }
+
+            closeModal();
+            await loadMethods();
+        } catch (error) {
+            showStatus(error.message, "error");
+        }
+    });
+
+    loadMethods();
+</script>
+</body>
+</html>
